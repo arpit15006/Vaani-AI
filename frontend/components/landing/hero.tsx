@@ -44,7 +44,7 @@ export function Hero() {
         {/* Title */}
         <h1 className="animate-fade-in-up text-5xl sm:text-7xl md:text-8xl font-extrabold tracking-tight mb-8">
           Meet{" "}
-          <span className="inline-block text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-500 to-purple-600 drop-shadow-sm pb-2">
+          <span className="text-foreground drop-shadow-sm pb-2">
             VaaniAI
           </span>
         </h1>
