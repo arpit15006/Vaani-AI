@@ -43,8 +43,8 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
 
     return {
       success: true,
-      message: `Your event "${eventTitle}" has been scheduled for ${start.toLocaleString()}. You can view it in Google Calendar.`,
-      data: { eventId: response.data.id, htmlLink: response.data.htmlLink, start: start.toISOString(), end: end.toISOString() },
+      message: `Your event "${eventTitle}" has been scheduled for ${toLocalISO(start).replace('T', ' ')}. You can view it in Google Calendar.`,
+      data: { eventId: response.data.id, htmlLink: response.data.htmlLink, start: toLocalISO(start), end: toLocalISO(end) },
     };
   } catch (error) {
     console.error("[Tool:Calendar:Create] Error:", error.message);
@@ -100,7 +100,7 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
       end: e.end.dateTime || e.end.date,
     }));
 
-    const readable = eventList.map(e => `• "${e.title}" at ${new Date(e.start).toLocaleString()}`).join("\n");
+    const readable = eventList.map(e => `• "${e.title}" at ${new Date(e.start).toLocaleString("en-US", { timeZone: userTimezone })}`).join("\n");
 
     return {
       success: true,

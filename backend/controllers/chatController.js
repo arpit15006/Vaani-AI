@@ -112,6 +112,8 @@ async function handleChat(req, res) {
         routeResult,
         message,
         history,
+        accessToken,
+        memoryContext,
         userName,
         timezone
       );
