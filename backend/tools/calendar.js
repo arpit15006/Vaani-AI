@@ -1,0 +1,266 @@
+const { google } = require("googleapis");
+
+function getCalendarClient(accessToken) {
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  return google.calendar({ version: "v3", auth: oauth2Client });
+}
+
+// ==================== CREATE ====================
+async function createCalendarEvent({ title, date, time, summary, startDateTime, endDateTime, accessToken }) {
+  try {
+    if (!accessToken) {
+      return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
+    }
+
+    const calendar = getCalendarClient(accessToken);
+    const eventTitle = title || summary || "Meeting";
+    const now = new Date();
+
+    let start, end;
+    if (startDateTime) {
+      start = new Date(startDateTime);
+      end = endDateTime ? new Date(endDateTime) : new Date(start.getTime() + 60 * 60 * 1000);
+    } else {
+      start = parseDateTime(date, time, now);
+      end = new Date(start.getTime() + 60 * 60 * 1000);
+    }
+
+    const event = {
+      summary: eventTitle,
+      start: { dateTime: start.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      end: { dateTime: end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    };
+
+    const response = await calendar.events.insert({ calendarId: "primary", resource: event });
+
+    return {
+      success: true,
+      message: `Your event "${eventTitle}" has been scheduled for ${start.toLocaleString()}. You can view it in Google Calendar.`,
+      data: { eventId: response.data.id, htmlLink: response.data.htmlLink, start: start.toISOString(), end: end.toISOString() },
+    };
+  } catch (error) {
+    console.error("[Tool:Calendar:Create] Error:", error.message);
+    return { success: false, error: error.message, fallback: "I couldn't create the calendar event. Please check your Google account is connected and try again." };
+  }
+}
+
+// ==================== LIST ====================
+async function listCalendarEvents({ date, query, maxResults = 10, accessToken }) {
+  try {
+    if (!accessToken) {
+      return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
+    }
+
+    const calendar = getCalendarClient(accessToken);
+    const now = new Date();
+
+    // Build time range
+    let timeMin, timeMax;
+    if (date) {
+      const parsed = parseDateOnly(date, now);
+      timeMin = new Date(parsed);
+      timeMin.setHours(0, 0, 0, 0);
+      timeMax = new Date(parsed);
+      timeMax.setHours(23, 59, 59, 999);
+    } else {
+      timeMin = now;
+      timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Next 7 days
+    }
+
+    const params = {
+      calendarId: "primary",
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      maxResults,
+      singleEvents: true,
+      orderBy: "startTime",
+    };
+    if (query) params.q = query;
+
+    const response = await calendar.events.list(params);
+    const events = response.data.items || [];
+
+    if (events.length === 0) {
+      return { success: true, message: "You have no events scheduled for that time period.", data: { events: [] } };
+    }
+
+    const eventList = events.map(e => ({
+      id: e.id,
+      title: e.summary || "(No title)",
+      start: e.start.dateTime || e.start.date,
+      end: e.end.dateTime || e.end.date,
+    }));
+
+    const readable = eventList.map(e => `• "${e.title}" at ${new Date(e.start).toLocaleString()}`).join("\n");
+
+    return {
+      success: true,
+      message: `Here are your upcoming events:\n${readable}`,
+      data: { events: eventList },
+    };
+  } catch (error) {
+    console.error("[Tool:Calendar:List] Error:", error.message);
+    return { success: false, error: error.message, fallback: "I couldn't fetch your calendar events." };
+  }
+}
+
+// ==================== DELETE ====================
+async function deleteCalendarEvent({ eventId, title, date, accessToken }) {
+  try {
+    if (!accessToken) {
+      return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
+    }
+
+    const calendar = getCalendarClient(accessToken);
+
+    // If no eventId, search by title and/or date
+    if (!eventId && (title || date)) {
+      const searchResult = await listCalendarEvents({ date, query: title, maxResults: 10, accessToken });
+      if (searchResult.success && searchResult.data.events.length > 0) {
+        // Delete all matching events
+        let deletedCount = 0;
+        for (const event of searchResult.data.events) {
+          try {
+            await calendar.events.delete({ calendarId: "primary", eventId: event.id });
+            deletedCount++;
+          } catch (e) {
+            console.error(`[Tool:Calendar:Delete] Failed to delete event ${event.id}:`, e.message);
+          }
+        }
+        return {
+          success: true,
+          message: `Successfully deleted ${deletedCount} event(s) ${title ? `matching "${title}" ` : ""}${date ? `on ${date}` : ""} from your calendar.`,
+          data: { deletedCount },
+        };
+      } else {
+        return { success: true, message: `I couldn't find any events ${title ? `matching "${title}" ` : ""}${date ? `on ${date}` : ""} in your calendar.`, data: { deletedCount: 0 } };
+      }
+    }
+
+    if (eventId) {
+      await calendar.events.delete({ calendarId: "primary", eventId });
+      return { success: true, message: "The event has been deleted from your calendar.", data: { deletedEventId: eventId } };
+    }
+
+    return { success: false, error: "No event ID or title provided", fallback: "I need either an event title or ID to delete an event." };
+  } catch (error) {
+    console.error("[Tool:Calendar:Delete] Error:", error.message);
+    return { success: false, error: error.message, fallback: "I couldn't delete the calendar event." };
+  }
+}
+
+// ==================== UPDATE ====================
+async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime, accessToken }) {
+  try {
+    if (!accessToken) {
+      return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
+    }
+
+    const calendar = getCalendarClient(accessToken);
+
+    // If no eventId, search by title
+    if (!eventId && title) {
+      const searchResult = await listCalendarEvents({ query: title, maxResults: 1, accessToken });
+      if (searchResult.success && searchResult.data.events.length > 0) {
+        eventId = searchResult.data.events[0].id;
+      } else {
+        return { success: false, error: "Event not found", fallback: `I couldn't find an event called "${title}" in your calendar.` };
+      }
+    }
+
+    if (!eventId) {
+      return { success: false, error: "No event ID or title provided", fallback: "I need either an event title or ID to update an event." };
+    }
+
+    // Fetch existing event
+    const existing = await calendar.events.get({ calendarId: "primary", eventId });
+    const patch = {};
+
+    if (newTitle) {
+      patch.summary = newTitle;
+    }
+
+    if (newDate || newTime) {
+      const currentStart = new Date(existing.data.start.dateTime || existing.data.start.date);
+      const updatedStart = parseDateTime(newDate, newTime, currentStart);
+      const duration = new Date(existing.data.end.dateTime || existing.data.end.date).getTime() - currentStart.getTime();
+      const updatedEnd = new Date(updatedStart.getTime() + duration);
+
+      patch.start = { dateTime: updatedStart.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+      patch.end = { dateTime: updatedEnd.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    }
+
+    const response = await calendar.events.patch({ calendarId: "primary", eventId, resource: patch });
+
+    return {
+      success: true,
+      message: `Your event "${response.data.summary}" has been updated. ${patch.start ? `New time: ${new Date(patch.start.dateTime).toLocaleString()}.` : ""} ${patch.summary ? `New title: "${patch.summary}".` : ""}`,
+      data: { eventId, updated: Object.keys(patch) },
+    };
+  } catch (error) {
+    console.error("[Tool:Calendar:Update] Error:", error.message);
+    return { success: false, error: error.message, fallback: "I couldn't update the calendar event." };
+  }
+}
+
+// ==================== HELPERS ====================
+function parseDateOnly(dateStr, now) {
+  if (!dateStr) return now;
+  const result = new Date(now);
+  const lower = dateStr.toLowerCase();
+
+  // Day name matching
+  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const dayIndex = days.findIndex(day => lower.includes(day));
+
+  if (dayIndex !== -1) {
+    const currentDay = result.getDay();
+    let daysToAdd = dayIndex - currentDay;
+    if (daysToAdd <= 0) daysToAdd += 7; // Next occurrence
+    result.setDate(result.getDate() + daysToAdd);
+    return result;
+  }
+
+  if (lower.includes("tomorrow")) {
+    result.setDate(result.getDate() + 1);
+    return result;
+  }
+  if (lower.includes("today")) {
+    return result;
+  }
+  if (lower.includes("next week")) {
+    result.setDate(result.getDate() + 7);
+    return result;
+  }
+
+  // Final fallback: try native Date parsing
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed;
+  }
+
+  return result;
+}
+
+function parseDateTime(dateStr, timeStr, now) {
+  let result = parseDateOnly(dateStr, now);
+
+  if (timeStr) {
+    const timeMatch = timeStr.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?/);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2] || "0");
+      const period = (timeMatch[3] || "").toLowerCase();
+
+      if (period === "pm" && hours < 12) hours += 12;
+      if (period === "am" && hours === 12) hours = 0;
+
+      result.setHours(hours, minutes, 0, 0);
+    }
+  }
+
+  return result;
+}
+
+module.exports = { createCalendarEvent, listCalendarEvents, deleteCalendarEvent, updateCalendarEvent };

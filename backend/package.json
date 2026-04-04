@@ -1,0 +1,26 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "Arpit Patel",
+  "license": "ISC",
+  "description": "VaaniAI Backend - Multi-Agent AI Assistant",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.48.0",
+    "@supabase/supabase-js": "^2.101.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "googleapis": "^171.4.0",
+    "groq-sdk": "^1.1.2"
+  }
+}

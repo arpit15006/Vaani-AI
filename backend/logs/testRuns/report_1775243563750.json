@@ -1,0 +1,383 @@
+{
+  "duration": 47311,
+  "passRate": "8/11",
+  "results": [
+    {
+      "id": "TEST_1",
+      "name": "Planner Only (No Tool)",
+      "pass": true,
+      "confidence": 0.95,
+      "input": "Plan a 2-day Goa trip under 8000 rupees",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 3 step(s): Research and suggest itinerary for 2-day Goa trip under 8000 rupees, Provide budget breakdown for the trip, Recommend affordable accommodations and activities in Goa",
+          "steps": [
+            "Research and suggest itinerary for 2-day Goa trip under 8000 rupees",
+            "Provide budget breakdown for the trip",
+            "Recommend affordable accommodations and activities in Goa"
+          ],
+          "durationMs": 1139
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "No tool execution needed",
+          "toolCalled": null,
+          "result": "Skipped",
+          "durationMs": 4948
+        },
+        "critic": {
+          "thinking": "Refined response for clarity and voice delivery",
+          "refinement": "Response was improved",
+          "durationMs": 577
+        }
+      }
+    },
+    {
+      "id": "TEST_2",
+      "name": "No Tool Scenario",
+      "pass": true,
+      "confidence": 0.93,
+      "input": "Tell me a joke",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 1 step(s): Share a joke",
+          "steps": [
+            "Share a joke"
+          ],
+          "durationMs": 351
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "No tool execution needed",
+          "toolCalled": null,
+          "result": "Skipped",
+          "durationMs": 279
+        },
+        "critic": {
+          "thinking": "Refined response for clarity and voice delivery",
+          "refinement": "Response was improved",
+          "durationMs": 256
+        }
+      }
+    },
+    {
+      "id": "TEST_3",
+      "name": "Weather Tool",
+      "pass": true,
+      "confidence": 0.91,
+      "input": "What is the weather in Mumbai?",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 1 step(s): Get weather for Mumbai",
+          "steps": [
+            "Get weather for Mumbai"
+          ],
+          "durationMs": 490
+        },
+        "toolRouter": {
+          "decision": "Tool required",
+          "toolName": "weather",
+          "confidence": 0.9,
+          "reason": "Step mentions getting weather for a specific city",
+          "durationMs": 342
+        },
+        "executor": {
+          "thinking": "Executed weather tool for pending steps",
+          "toolCalled": "weather",
+          "result": "Tool execution completed",
+          "durationMs": 204
+        },
+        "critic": {
+          "thinking": "Refined response for clarity and voice delivery",
+          "refinement": "Response was improved",
+          "durationMs": 655
+        }
+      }
+    },
+    {
+      "id": "TEST_4",
+      "name": "Calendar Tool",
+      "pass": true,
+      "confidence": 0.94,
+      "input": "Schedule a meeting tomorrow at 5 PM",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 1 step(s): Create calendar event for meeting",
+          "steps": [
+            "Create calendar event for meeting"
+          ],
+          "durationMs": 346
+        },
+        "toolRouter": {
+          "decision": "Tool required",
+          "toolName": "calendar",
+          "confidence": 0.9,
+          "reason": "Step mentions creating a calendar event",
+          "durationMs": 384
+        },
+        "executor": {
+          "thinking": "Executed calendar tool for pending steps",
+          "toolCalled": "calendar",
+          "result": "Tool execution completed",
+          "durationMs": 0
+        },
+        "critic": {
+          "thinking": "Refined response for clarity and voice delivery",
+          "refinement": "Response was improved",
+          "durationMs": 447
+        }
+      }
+    },
+    {
+      "id": "TEST_5",
+      "name": "Email Tool",
+      "pass": true,
+      "confidence": 0.98,
+      "input": "Send an email to test@example.com saying Hello",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 1 step(s): Send email saying Hello",
+          "steps": [
+            "Send email saying Hello"
+          ],
+          "durationMs": 299
+        },
+        "toolRouter": {
+          "decision": "Tool required",
+          "toolName": "email",
+          "confidence": 0.9,
+          "reason": "Step mentions sending email",
+          "durationMs": 359
+        },
+        "executor": {
+          "thinking": "Executed email tool for pending steps",
+          "toolCalled": "email",
+          "result": "Tool execution completed",
+          "durationMs": 862
+        },
+        "critic": {
+          "thinking": "Refined response for clarity and voice delivery",
+          "refinement": "Response was improved",
+          "durationMs": 6387
+        }
+      }
+    },
+    {
+      "id": "TEST_6",
+      "name": "Multi-step Reasoning",
+      "pass": true,
+      "confidence": 0.91,
+      "input": "Check the weather in Delhi and if it is above 30°C, suggest indoor activities",
+      "trace": {
+        "planner": {
+          "thinking": "Analyzed request and identified 2 step(s): Get weather for Delhi, Suggest indoor activities if weather is above 30°C",
+          "steps": [
+            "Get weather for Delhi",
+            "Suggest indoor activities if weather is above 30°C"
+          ],
+          "durationMs": 2953
+        },
+        "toolRouter": {
+          "decision": "Tool required",
+          "toolName": "weather",
+          "confidence": 0.9,
+          "reason": "Step mentions getting weather for a specific city",
+          "durationMs": 21130
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 228
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 115
+        }
+      }
+    },
+    {
+      "id": "TEST_7",
+      "name": "Tool Chaining",
+      "pass": false,
+      "confidence": 0,
+      "input": "Check weather in Mumbai and schedule a meeting tomorrow at 5 PM if it is not raining",
+      "trace": {
+        "planner": {
+          "thinking": "Failed to plan - falling back to conversational response",
+          "steps": [
+            "respond"
+          ],
+          "durationMs": 454
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 62
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 55
+        }
+      }
+    },
+    {
+      "id": "TEST_8",
+      "name": "Failure Handling",
+      "pass": false,
+      "confidence": 0,
+      "input": "Send email to invalid-email",
+      "trace": {
+        "planner": {
+          "thinking": "Failed to plan - falling back to conversational response",
+          "steps": [
+            "respond"
+          ],
+          "durationMs": 57
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 55
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 53
+        }
+      }
+    },
+    {
+      "id": "TEST_9",
+      "name": "Memory Test",
+      "pass": true,
+      "confidence": 0.97,
+      "input": "Suggest a travel plan for my favorite city",
+      "trace": {
+        "planner": {
+          "thinking": "Failed to plan - falling back to conversational response",
+          "steps": [
+            "respond"
+          ],
+          "durationMs": 57
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 52
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 51
+        }
+      }
+    },
+    {
+      "id": "TEST_10",
+      "name": "Edge Case",
+      "pass": true,
+      "confidence": 0.92,
+      "input": "asdasdasd ???",
+      "trace": {
+        "planner": {
+          "thinking": "Failed to plan - falling back to conversational response",
+          "steps": [
+            "respond"
+          ],
+          "durationMs": 63
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 56
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 54
+        }
+      }
+    },
+    {
+      "id": "TEST_11",
+      "name": "FINAL BOSS",
+      "pass": false,
+      "confidence": 0,
+      "input": "Plan a day in Delhi, check weather, and if it's hot suggest indoor places and email me the plan",
+      "trace": {
+        "planner": {
+          "thinking": "Failed to plan - falling back to conversational response",
+          "steps": [
+            "respond"
+          ],
+          "durationMs": 63
+        },
+        "toolRouter": {
+          "decision": "No tool needed",
+          "toolName": null,
+          "confidence": 1,
+          "reason": "Planner marked as no tool needed",
+          "durationMs": 0
+        },
+        "executor": {
+          "thinking": "Execution failed - returning fallback",
+          "toolCalled": null,
+          "result": "Error: I'm having trouble thinking right now. Please try again.",
+          "durationMs": 58
+        },
+        "critic": {
+          "thinking": "Critic failed - passing through original response",
+          "refinement": "No refinement (fallback)",
+          "durationMs": 52
+        }
+      }
+    }
+  ]
+}
