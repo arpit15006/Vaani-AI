@@ -342,30 +342,29 @@ function DashboardContent() {
 
         {/* Dynamic Content Body */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          
-          {activeTab === 'chat' && (
-            <div className="absolute inset-0 overflow-hidden bg-background">
-              {!isAuthenticated ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-background/50 z-50">
-                  <div className="max-w-md w-full text-center space-y-6 bg-card border border-border/50 p-8 rounded-[2rem] shadow-2xl">
-                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 relative">
-                      <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-                      <Shield className="size-8 text-primary relative z-10" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold tracking-tight mb-2">Authentication Required</h2>
-                      <p className="text-muted-foreground leading-relaxed text-sm">
-                        Please connect your Google account to authorize VaaniAI to safely access your calendar, send emails, and contextually build your personal memory.
-                      </p>
-                    </div>
-                    <Button size="lg" className="w-full text-base h-14 rounded-2xl shadow-lg shadow-primary/20 hover:-translate-y-1 transition-all duration-300" onClick={handleLogin}>
-                      <LogIn className="size-5 mr-2" />
-                      Login with Google
-                    </Button>
-                  </div>
+          {!isAuthenticated ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-background/50 z-50">
+              <div className="max-w-md w-full text-center space-y-6 bg-card border border-border/50 p-8 rounded-[2rem] shadow-2xl">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 relative">
+                  <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                  <Shield className="size-8 text-primary relative z-10" />
                 </div>
-              ) : (
-                <>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight mb-2">Authentication Required</h2>
+                  <p className="text-muted-foreground leading-relaxed text-sm">
+                    Please connect your Google account to authorize VaaniAI to safely access your calendar, send emails, and contextually build your personal memory.
+                  </p>
+                </div>
+                <Button size="lg" className="w-full text-base h-14 rounded-2xl shadow-lg shadow-primary/20 hover:-translate-y-1 transition-all duration-300" onClick={handleLogin}>
+                  <LogIn className="size-5 mr-2" />
+                  Login with Google
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'chat' && (
+                <div className="absolute inset-0 overflow-hidden bg-background">
                   {messages.length > 0 && (
                      <div className="absolute top-4 right-4 z-20 hidden md:block">
                        <Button variant="outline" size="sm" onClick={startNewConversation} className="shadow-md glass hover:bg-white/5 border-border/50 transition-all rounded-full px-4">
@@ -400,56 +399,55 @@ function DashboardContent() {
                       </div>
                     </div>
                   </div>
-                </>
+                </div>
               )}
-            </div>
-          )}
 
-          {activeTab === 'history' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto">
-                <ConversationList 
-                  key={refreshTrigger} 
-                  token={accessToken} 
-                  email={userEmail} 
-                  onSelectConversation={loadConversation} 
-                />
-              </div>
-            </div>
-          )}
+              {activeTab === 'history' && (
+                <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-4xl mx-auto">
+                    <ConversationList 
+                      key={refreshTrigger} 
+                      token={accessToken} 
+                      email={userEmail} 
+                      onSelectConversation={loadConversation} 
+                    />
+                  </div>
+                </div>
+              )}
 
-          {activeTab === 'actions' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto">
-                 <ActionHistoryPanel token={accessToken} email={userEmail} />
-              </div>
-            </div>
-          )}
+              {activeTab === 'actions' && (
+                <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-4xl mx-auto">
+                     <ActionHistoryPanel token={accessToken} email={userEmail} />
+                  </div>
+                </div>
+              )}
 
-          {activeTab === 'analytics' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-4xl mx-auto">
-                 <AnalyticsPanel token={accessToken} email={userEmail} />
-              </div>
-            </div>
-          )}
+              {activeTab === 'analytics' && (
+                <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-4xl mx-auto">
+                     <AnalyticsPanel token={accessToken} email={userEmail} />
+                  </div>
+                </div>
+              )}
 
-          {activeTab === 'memory' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-6xl mx-auto">
-                 <MemoryPanel token={accessToken} email={userEmail} />
-              </div>
-            </div>
-          )}
+              {activeTab === 'memory' && (
+                <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-6xl mx-auto">
+                     <MemoryPanel token={accessToken} email={userEmail} />
+                  </div>
+                </div>
+              )}
 
-          {activeTab === 'settings' && (
-            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
-              <div className="max-w-3xl mx-auto">
-                 <SettingsPanel token={accessToken} email={userEmail} />
-              </div>
-            </div>
+              {activeTab === 'settings' && (
+                <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-3xl mx-auto">
+                     <SettingsPanel token={accessToken} email={userEmail} />
+                  </div>
+                </div>
+              )}
+            </>
           )}
-
         </main>
       </div>
     </div>
