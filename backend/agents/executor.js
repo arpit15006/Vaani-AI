@@ -15,7 +15,7 @@ const toolFunctions = {
   weather: getWeather,
 };
 
-async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "") {
+async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "", timezone = "UTC") {
   const startTime = Date.now();
   const routedSteps = routeResult.steps;
   const routerDecision = routeResult.trace.decision;
@@ -38,7 +38,7 @@ async function execute(routeResult, message, history = [], accessToken = null, m
 
         if (toolFn) {
           try {
-            let paramsToPass = { ...step.params, accessToken };
+            let paramsToPass = { ...step.params, accessToken, timezone };
 
             // Auto-draft email bodies with full context injection
             if (step.routing.toolName === "email") {

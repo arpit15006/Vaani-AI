@@ -62,7 +62,11 @@ export async function sendMessage(
     const res = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ 
+        message, 
+        history,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone 
+      }),
       signal: controller.signal,
     })
 

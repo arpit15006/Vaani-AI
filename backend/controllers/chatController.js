@@ -13,7 +13,7 @@ async function handleChat(req, res) {
   const pipelineStart = Date.now();
 
   try {
-    const { message, history = [] } = req.body;
+    const { message, history = [], timezone } = req.body;
     const accessToken = req.accessToken;
     const userId = req.userId || "local";
 
@@ -92,7 +92,7 @@ async function handleChat(req, res) {
       if (!isToolRequired || onlyNoneTools) {
         if (loopCount === 1) streamStatus("Generating conversational response...");
         // Still execute to get the LLM's conversational response
-        const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName);
+        const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName, timezone);
         finalExecResult = execResult;
         if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
         break;
@@ -112,9 +112,8 @@ async function handleChat(req, res) {
         routeResult,
         message,
         history,
-        accessToken,
-        memoryContext,
-        userName
+        userName,
+        timezone
       );
       finalExecResult = execResult;
 

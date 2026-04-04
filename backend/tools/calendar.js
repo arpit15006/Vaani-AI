@@ -7,7 +7,8 @@ function getCalendarClient(accessToken) {
 }
 
 // ==================== CREATE ====================
-async function createCalendarEvent({ title, date, time, summary, startDateTime, endDateTime, accessToken }) {
+async function createCalendarEvent({ title, date, time, summary, startDateTime, endDateTime, accessToken, timezone }) {
+  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   try {
     if (!accessToken) {
       return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
@@ -15,7 +16,7 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
 
     const calendar = getCalendarClient(accessToken);
     const eventTitle = title || summary || "Meeting";
-    const now = new Date();
+    const now = getNowInTimezone(userTimezone);
 
     let start, end;
     if (startDateTime) {
@@ -28,8 +29,14 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
 
     const event = {
       summary: eventTitle,
-      start: { dateTime: start.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-      end: { dateTime: end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      start: { 
+        dateTime: toLocalISO(start), 
+        timeZone: userTimezone 
+      },
+      end: { 
+        dateTime: toLocalISO(end), 
+        timeZone: userTimezone 
+      },
     };
 
     const response = await calendar.events.insert({ calendarId: "primary", resource: event });
@@ -46,14 +53,15 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
 }
 
 // ==================== LIST ====================
-async function listCalendarEvents({ date, query, maxResults = 10, accessToken }) {
+async function listCalendarEvents({ date, query, maxResults = 10, accessToken, timezone }) {
+  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   try {
     if (!accessToken) {
       return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
     }
 
     const calendar = getCalendarClient(accessToken);
-    const now = new Date();
+    const now = getNowInTimezone(userTimezone);
 
     // Build time range
     let timeMin, timeMax;
@@ -106,7 +114,7 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken })
 }
 
 // ==================== DELETE ====================
-async function deleteCalendarEvent({ eventId, title, date, accessToken }) {
+async function deleteCalendarEvent({ eventId, title, date, accessToken, timezone }) {
   try {
     if (!accessToken) {
       return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
@@ -116,7 +124,7 @@ async function deleteCalendarEvent({ eventId, title, date, accessToken }) {
 
     // If no eventId, search by title and/or date
     if (!eventId && (title || date)) {
-      const searchResult = await listCalendarEvents({ date, query: title, maxResults: 10, accessToken });
+      const searchResult = await listCalendarEvents({ date, query: title, maxResults: 10, accessToken, timezone });
       if (searchResult.success && searchResult.data.events.length > 0) {
         // Delete all matching events
         let deletedCount = 0;
@@ -151,7 +159,8 @@ async function deleteCalendarEvent({ eventId, title, date, accessToken }) {
 }
 
 // ==================== UPDATE ====================
-async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime, accessToken }) {
+async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime, accessToken, timezone }) {
+  const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   try {
     if (!accessToken) {
       return { success: false, error: "Not authenticated", fallback: "I need access to your Google Calendar. Please connect your Google account first." };
@@ -161,7 +170,7 @@ async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime,
 
     // If no eventId, search by title
     if (!eventId && title) {
-      const searchResult = await listCalendarEvents({ query: title, maxResults: 1, accessToken });
+      const searchResult = await listCalendarEvents({ query: title, maxResults: 1, accessToken, timezone });
       if (searchResult.success && searchResult.data.events.length > 0) {
         eventId = searchResult.data.events[0].id;
       } else {
@@ -298,6 +307,50 @@ function parseDateTime(dateStr, timeStr, now) {
   }
 
   return result;
+}
+
+function toLocalISO(date) {
+  const pad = (n) => n.toString().padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const h = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  const s = pad(date.getSeconds());
+  return `${y}-${m}-${d}T${h}:${mm}:${s}`;
+}
+
+function getNowInTimezone(timezone) {
+  const now = new Date();
+  if (!timezone) return now;
+  
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(now);
+    const d = {};
+    parts.forEach(p => { if(p.type !== 'literal') d[p.type] = p.value; });
+    
+    // Handle 24h wrap-around if formatter returns 24 instead of 00
+    let hour = parseInt(d.hour);
+    if (hour === 24) hour = 0;
+
+    const localNow = new Date();
+    localNow.setFullYear(parseInt(d.year), parseInt(d.month) - 1, parseInt(d.day));
+    localNow.setHours(hour, parseInt(d.minute), parseInt(d.second), 0);
+    return localNow;
+  } catch (e) {
+    return now;
+  }
 }
 
 module.exports = { createCalendarEvent, listCalendarEvents, deleteCalendarEvent, updateCalendarEvent };
