@@ -80,7 +80,7 @@ export function MemoryPanel({ token, email }: { token: string | null, email: str
               <Button 
                 variant="ghost" 
                 size="icon-sm" 
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                className="absolute top-2 right-2 text-muted-foreground hover:text-destructive"
                 onClick={() => handleDelete(mem.id)}
               >
                 <Trash2 className="size-3.5" />
