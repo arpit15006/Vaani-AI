@@ -30,9 +30,6 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "x-user-email"],
 }));
 
-// Handle preflight requests explicitly
-app.options("*", cors());
-
 app.use(express.json({ limit: "50kb" }));
 app.use(globalLimiter);
 
