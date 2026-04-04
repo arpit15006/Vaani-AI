@@ -9,7 +9,7 @@ Available tools:
 - calendar_delete: Delete existing Google Calendar events (needs: title and/or date to search for)
 - calendar_update: Update/reschedule existing Google Calendar events (needs: title to find the event, plus newDate in YYYY-MM-DD format and/or newTime)
 - calendar_list: List upcoming Google Calendar events (optional: date in YYYY-MM-DD format, query)
-- email: Send emails via Gmail (needs: to, subject, body)
+- email: Send emails via Gmail (needs: to, subject, body). IMPORTANT: If the user says "send it to me" or "mail it to me", strictly use "me" for the 'to' parameter. Do not try to guess their email from conversation history.
 - email_list: List recent emails/inbox snippets (optional: limit, query for finding specific emails like "from:Zorvyn")
 - email_read: Read the full content of a specific email (optional: messageId, or query like "from:Zorvyn" if ID is unknown)
 - weather: Get weather information (needs: city)
