@@ -220,7 +220,7 @@ Raw LLM output sounds robotic when fed directly to the Web Speech API. VaaniAI p
 | ![Dashboard](docs/screenshots/dashboard.png) | ![Trace](docs/screenshots/trace.png) | ![Analytics](docs/screenshots/analytics.png) |
 
 <!-- Add demo video link -->
-> **Live Demo**: [Coming Soon]
+> **Live Demo**: [https://vaani-ai-pi.vercel.app](https://vaani-ai-pi.vercel.app)
 
 ---
 
