@@ -345,40 +345,63 @@ function DashboardContent() {
           
           {activeTab === 'chat' && (
             <div className="absolute inset-0 overflow-hidden bg-background">
-              {messages.length > 0 && (
-                 <div className="absolute top-4 right-4 z-20 hidden md:block">
-                   <Button variant="outline" size="sm" onClick={startNewConversation} className="shadow-md glass hover:bg-white/5 border-border/50 transition-all rounded-full px-4">
-                     <MessageSquarePlus className="size-4 mr-2" /> New Chat
-                   </Button>
-                 </div>
-              )}
-              
-              <div className="absolute inset-0 overflow-hidden">
-                <ChatContainer messages={messages} isLoading={isLoading} onSuggestionClick={handleSend} />
-              </div>
-              
-              {/* Gradient fade mask - prevents text from showing behind input */}
-              <div className="absolute bottom-0 left-0 right-0 h-44 z-30 pointer-events-none bg-gradient-to-t from-background via-background/95 to-transparent" />
-              
-              {/* Floating chat input */}
-              <div className="absolute bottom-6 left-0 right-0 px-4 z-40 pointer-events-none">
-                <div className="max-w-3xl mx-auto pointer-events-auto">
-                  <div className="bg-card rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-border/30 p-2 sm:p-3 relative overflow-hidden">
-                    <div className="relative flex items-end gap-2 sm:gap-3">
-                      <MicButton isListening={stt.isListening} onClick={handleMicToggle} disabled={isLoading} />
-                      <div className="flex-1">
-                        <ChatInput onSend={handleSend} disabled={isLoading || stt.isListening} />
-                      </div>
-                      <StopButton onClick={handleStop} visible={tts.isSpeaking || stt.isListening} />
+              {!isAuthenticated ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-background/50 z-50">
+                  <div className="max-w-md w-full text-center space-y-6 bg-card border border-border/50 p-8 rounded-[2rem] shadow-2xl">
+                    <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 relative">
+                      <div className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                      <Shield className="size-8 text-primary relative z-10" />
                     </div>
-                  </div>
-                  <div className="text-center mt-3">
-                    <p className="text-[10px] text-muted-foreground/60 tracking-wide uppercase font-medium">
-                      VaaniAI can make mistakes. Verify critical actions.
-                    </p>
+                    <div>
+                      <h2 className="text-2xl font-bold tracking-tight mb-2">Authentication Required</h2>
+                      <p className="text-muted-foreground leading-relaxed text-sm">
+                        Please connect your Google account to authorize VaaniAI to safely access your calendar, send emails, and contextually build your personal memory.
+                      </p>
+                    </div>
+                    <Button size="lg" className="w-full text-base h-14 rounded-2xl shadow-lg shadow-primary/20 hover:-translate-y-1 transition-all duration-300" onClick={handleLogin}>
+                      <LogIn className="size-5 mr-2" />
+                      Login with Google
+                    </Button>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  {messages.length > 0 && (
+                     <div className="absolute top-4 right-4 z-20 hidden md:block">
+                       <Button variant="outline" size="sm" onClick={startNewConversation} className="shadow-md glass hover:bg-white/5 border-border/50 transition-all rounded-full px-4">
+                         <MessageSquarePlus className="size-4 mr-2" /> New Chat
+                       </Button>
+                     </div>
+                  )}
+                  
+                  <div className="absolute inset-0 overflow-hidden">
+                    <ChatContainer messages={messages} isLoading={isLoading} onSuggestionClick={handleSend} />
+                  </div>
+                  
+                  {/* Gradient fade mask - prevents text from showing behind input */}
+                  <div className="absolute bottom-0 left-0 right-0 h-44 z-30 pointer-events-none bg-gradient-to-t from-background via-background/95 to-transparent" />
+                  
+                  {/* Floating chat input */}
+                  <div className="absolute bottom-6 left-0 right-0 px-4 z-40 pointer-events-none">
+                    <div className="max-w-3xl mx-auto pointer-events-auto">
+                      <div className="bg-card rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] border border-border/30 p-2 sm:p-3 relative overflow-hidden">
+                        <div className="relative flex items-end gap-2 sm:gap-3">
+                          <MicButton isListening={stt.isListening} onClick={handleMicToggle} disabled={isLoading} />
+                          <div className="flex-1">
+                            <ChatInput onSend={handleSend} disabled={isLoading || stt.isListening} />
+                          </div>
+                          <StopButton onClick={handleStop} visible={tts.isSpeaking || stt.isListening} />
+                        </div>
+                      </div>
+                      <div className="text-center mt-3">
+                        <p className="text-[10px] text-muted-foreground/60 tracking-wide uppercase font-medium">
+                          VaaniAI can make mistakes. Verify critical actions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
