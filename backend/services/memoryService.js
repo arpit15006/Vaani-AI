@@ -136,6 +136,24 @@ async function deleteMemory(userId, memoryId) {
   }
 }
 
+async function deleteAllMemories(userId) {
+  if (!supabase || userId === "local") return false;
+
+  try {
+    const { error } = await supabase
+      .from("user_memory")
+      .delete()
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    console.log(`[Memory] Wiped all memories for user ${userId}`);
+    return true;
+  } catch (err) {
+    console.error("[Memory] Delete all error:", err.message);
+    return false;
+  }
+}
+
 async function pruneMemories(userId) {
   try {
     const { data } = await supabase
@@ -159,4 +177,4 @@ async function pruneMemories(userId) {
   }
 }
 
-module.exports = { saveMemory, getMemories, getMemoryContext, deleteMemory };
+module.exports = { saveMemory, getMemories, getMemoryContext, deleteMemory, deleteAllMemories };

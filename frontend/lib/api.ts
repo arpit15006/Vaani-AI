@@ -156,6 +156,10 @@ export async function deleteMemory(id: string, token: string | null, email: stri
   await fetchWithAuth(`/api/user/memory/${id}`, "DELETE", token, email)
 }
 
+export async function clearAllMemory(token: string | null, email: string | null): Promise<void> {
+  await fetchWithAuth(`/api/user/memory/all`, "DELETE", token, email)
+}
+
 export async function getActionHistory(token: string | null, email: string | null): Promise<ActionLog[]> {
   return fetchWithAuth("/api/user/actions", "GET", token, email)
 }

@@ -417,7 +417,7 @@ function DashboardContent() {
           {activeTab === 'settings' && (
             <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8">
               <div className="max-w-3xl mx-auto">
-                 <SettingsPanel token={accessToken} />
+                 <SettingsPanel token={accessToken} email={userEmail} />
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { authenticateUser } = require("../middleware/authenticateUser");
 const { getConversations, getMessages, deleteConversation } = require("../services/conversationService");
-const { getMemories, deleteMemory } = require("../services/memoryService");
+const { getMemories, deleteMemory, deleteAllMemories } = require("../services/memoryService");
 const { getActionHistory } = require("../services/actionLogger");
 
 // Require auth for all user routes
@@ -38,6 +38,12 @@ router.get("/memory", requireAuth, async (req, res) => {
   const category = req.query.category;
   const memories = await getMemories(req.userId, category);
   res.json(memories);
+});
+
+router.delete("/memory/all", requireAuth, async (req, res) => {
+  const success = await deleteAllMemories(req.userId);
+  if (success) res.json({ success: true });
+  else res.status(500).json({ error: "Failed to delete all memories" });
 });
 
 router.delete("/memory/:id", requireAuth, async (req, res) => {

@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
 import { Mic, Volume2, Shield, Trash2, Key } from "lucide-react"
+import { clearAllMemory } from "@/lib/api"
 
-export function SettingsPanel({ token }: { token: string | null }) {
+export function SettingsPanel({ token, email }: { token: string | null, email: string | null }) {
   const { addToast } = useToast()
   
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false)
@@ -24,9 +25,13 @@ export function SettingsPanel({ token }: { token: string | null }) {
     setTimeout(() => window.location.reload(), 1000)
   }
 
-  const handleClearMemory = () => {
-    // In a real app, this would call DELETE /api/user/memory/all
-    addToast({ description: "All extracted memories have been cleared", variant: "default" })
+  const handleClearMemory = async () => {
+    try {
+      await clearAllMemory(token, email)
+      addToast({ description: "All extracted memories have been permanently cleared.", variant: "default" })
+    } catch (err) {
+      addToast({ description: "Failed to clear memory. Try again.", variant: "destructive" })
+    }
   }
 
   return (
