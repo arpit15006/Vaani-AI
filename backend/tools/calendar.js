@@ -210,18 +210,17 @@ function parseDateOnly(dateStr, now) {
   const result = new Date(now);
   const lower = dateStr.toLowerCase();
 
-  // Day name matching
-  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const dayIndex = days.findIndex(day => lower.includes(day));
-
-  if (dayIndex !== -1) {
-    const currentDay = result.getDay();
-    let daysToAdd = dayIndex - currentDay;
-    if (daysToAdd <= 0) daysToAdd += 7; // Next occurrence
-    result.setDate(result.getDate() + daysToAdd);
-    return result;
+  // 1. Try native Date parsing first if string contains a number (e.g., "Oct 15", "2026-10-15")
+  // This prevents issues where something like "Wednesday, Oct 15" gets incorrectly set to "next Wednesday".
+  const cleanedStr = dateStr.replace(/\s+at\s+/i, ' ');
+  if (/\d/.test(cleanedStr)) {
+    const parsed = new Date(cleanedStr);
+    if (!isNaN(parsed.getTime())) {
+      return parsed;
+    }
   }
 
+  // 2. Relative date matching
   if (lower.includes("tomorrow")) {
     result.setDate(result.getDate() + 1);
     return result;
@@ -234,7 +233,18 @@ function parseDateOnly(dateStr, now) {
     return result;
   }
 
-  // Final fallback: try native Date parsing
+  // 3. Day name matching
+  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const dayIndex = days.findIndex(day => lower.includes(day));
+
+  if (dayIndex !== -1) {
+    const currentDay = result.getDay();
+    let daysToAdd = dayIndex - currentDay;
+    if (daysToAdd <= 0) daysToAdd += 7; // Next occurrence
+    result.setDate(result.getDate() + daysToAdd);
+    return result;
+  }
+
   const parsed = new Date(dateStr);
   if (!isNaN(parsed.getTime())) {
     return parsed;
@@ -247,7 +257,9 @@ function parseDateTime(dateStr, timeStr, now) {
   let result = parseDateOnly(dateStr, now);
 
   if (timeStr) {
-    const timeMatch = timeStr.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?/);
+    const timeLower = timeStr.toLowerCase();
+    const timeMatch = timeStr.match(/(\d{1,2}):?(\d{2})?\s*(am|pm|AM|PM)?/i);
+    
     if (timeMatch) {
       let hours = parseInt(timeMatch[1]);
       const minutes = parseInt(timeMatch[2] || "0");
@@ -257,6 +269,31 @@ function parseDateTime(dateStr, timeStr, now) {
       if (period === "am" && hours === 12) hours = 0;
 
       result.setHours(hours, minutes, 0, 0);
+    } else if (timeLower.includes("noon")) {
+      result.setHours(12, 0, 0, 0);
+    } else if (timeLower.includes("midnight")) {
+      result.setHours(0, 0, 0, 0);
+    } else if (timeLower.includes("afternoon")) {
+      result.setHours(14, 0, 0, 0); // 2 PM default
+    } else if (timeLower.includes("morning")) {
+      result.setHours(9, 0, 0, 0); // 9 AM default
+    } else if (timeLower.includes("evening")) {
+      result.setHours(18, 0, 0, 0); // 6 PM default
+    } else {
+      // Unrecognized time string, let's round to nearest hour to prevent random exact minutes
+      if (result.getMinutes() > 0) {
+        result.setHours(result.getHours() + 1, 0, 0, 0);
+      } else {
+        result.setSeconds(0, 0);
+      }
+    }
+  } else {
+    // If no time is explicitly provided, avoid random exact current times.
+    // Round to the next whole hour.
+    if (result.getMinutes() > 0) {
+      result.setHours(result.getHours() + 1, 0, 0, 0);
+    } else {
+      result.setSeconds(0, 0);
     }
   }
 
