@@ -23,7 +23,7 @@ import { StatusIndicator, type Status } from "@/components/chat/status-indicator
 import { type Message } from "@/components/chat/message-bubble"
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis"
-import { sendMessage, getAuthUrl, exchangeCode, getConversationMessages } from "@/lib/api"
+import { sendMessage, getAuthUrl, getAuthRedirectUrl, exchangeCode, getConversationMessages } from "@/lib/api"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { ConversationList } from "@/components/dashboard/conversation-list"
 import { ActionHistoryPanel } from "@/components/dashboard/action-history"
@@ -252,12 +252,8 @@ function DashboardContent() {
 
   const handleStop = () => { tts.stop(); stt.stopListening() }
 
-  const handleLogin = async () => {
-    try {
-      window.location.href = await getAuthUrl()
-    } catch {
-      addToast({ description: "Failed to start login", variant: "destructive" })
-    }
+  const handleLogin = () => {
+    window.location.href = getAuthRedirectUrl()
   }
 
   const handleLogout = () => {
@@ -284,7 +280,7 @@ function DashboardContent() {
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
         
         {/* Header */}
-        <header className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/50 glass-strong">
+        <header className="shrink-0 flex items-center justify-between px-4 h-14 border-b border-border/50 glass-strong">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(true)}>
               <Menu className="size-5" />

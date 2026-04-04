@@ -14,9 +14,16 @@ async function sendEmail({ to, subject, body, accessToken }) {
     oauth2Client.setCredentials({ access_token: accessToken });
 
     let recipient = to;
-    // Check if AI hallucinated a placeholder string
-    if (recipient && !recipient.includes("@")) {
+    
+    // Support "send me an email"
+    if (recipient && recipient.toLowerCase().trim() === "me") {
       recipient = null;
+    } else if (recipient && !recipient.includes("@")) {
+      return {
+        success: false,
+        error: `Invalid email address: ${recipient}. Please provide a complete email address containing '@'.`,
+        fallback: `I don't have a valid email address for "${recipient}". Can you provide their full email address?`,
+      };
     }
     
     if (!recipient) {
