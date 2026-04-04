@@ -190,7 +190,12 @@ function DashboardContent() {
       setStatus("thinking")
 
       try {
-        const historyList = messagesRef.current.slice(-10).map((m) => ({ role: m.role, content: m.content as string }))
+        const historyList = messagesRef.current.slice(-10).map((m: any) => ({ 
+          role: m.role, 
+          content: m.agentTrace?.executor?.rawContext 
+            ? `${m.content}\n\n[SYSTEM: Data from this turn: ${m.agentTrace.executor.rawContext}]` 
+            : m.content as string 
+        }))
         const response = await sendMessage(
           text, 
           historyList as any, 

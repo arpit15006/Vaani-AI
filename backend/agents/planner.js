@@ -5,10 +5,10 @@ const PLANNER_PROMPT = `You are a Planner Agent in a multi-agent AI system calle
 Your job is to analyze the user's request and break it down into actionable steps.
 
 Available tools:
-- calendar: Create NEW Google Calendar events (needs: title, date, time)
+- calendar: Create NEW Google Calendar events (needs: title, date in YYYY-MM-DD format, time in HH:MM AM/PM format)
 - calendar_delete: Delete existing Google Calendar events (needs: title and/or date to search for)
-- calendar_update: Update/reschedule existing Google Calendar events (needs: title to find the event, plus newDate and/or newTime for the new schedule)
-- calendar_list: List upcoming Google Calendar events (optional: date, query)
+- calendar_update: Update/reschedule existing Google Calendar events (needs: title to find the event, plus newDate in YYYY-MM-DD format and/or newTime)
+- calendar_list: List upcoming Google Calendar events (optional: date in YYYY-MM-DD format, query)
 - email: Send emails via Gmail (needs: to, subject, body)
 - email_list: List recent emails/inbox snippets (optional: limit, query for finding specific emails like "from:Zorvyn")
 - email_read: Read the full content of a specific email (optional: messageId, or query like "from:Zorvyn" if ID is unknown)
@@ -59,8 +59,11 @@ async function plan(message, history = [], memoryContext = "") {
       ? `\n${memoryContext}\n`
       : "";
 
+    const currentDate = new Date().toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    const timeContext = `\n[SYSTEM] Current Date & Time: ${currentDate}\n`;
+
     const result = await generateJSON(
-      `${memoryBlock}${context}\nUser message: "${message}"`,
+      `${timeContext}${memoryBlock}${context}\nUser message: "${message}"`,
       PLANNER_PROMPT,
       MODEL_INSTANT
     );

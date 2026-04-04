@@ -167,7 +167,7 @@ async function handleChat(req, res) {
       agentTrace: {
         planner: finalPlanResult.trace,
         toolRouter: finalRouteResult.trace,
-        executor: finalExecResult.trace,
+        executor: { ...finalExecResult.trace, rawContext: finalExecResult.response },
         critic: criticResult.trace,
         totalDurationMs,
       },
