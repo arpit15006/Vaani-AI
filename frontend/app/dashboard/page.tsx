@@ -342,7 +342,7 @@ function DashboardContent() {
 
         {/* Dynamic Content Body */}
         <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          {!isAuthenticated ? (
+          {!isAuthenticated && activeTab === 'chat' ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-background/50 z-50">
               <div className="max-w-md w-full text-center space-y-6 bg-card border border-border/50 p-8 rounded-[2rem] shadow-2xl">
                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 relative">
@@ -359,6 +359,20 @@ function DashboardContent() {
                   <LogIn className="size-5 mr-2" />
                   Login with Google
                 </Button>
+              </div>
+            </div>
+          ) : !isAuthenticated && activeTab !== 'chat' ? (
+            <div className="absolute inset-0 overflow-y-auto p-4 sm:p-6 lg:p-8 flex items-start justify-center pt-20">
+              <div className="max-w-3xl w-full border border-dashed rounded-xl p-12 text-center bg-card/10">
+                <h3 className="text-lg font-medium mb-2 text-foreground">Connect your account</h3>
+                <p className="text-sm text-muted-foreground">
+                  Sign in with Google to view your {
+                    activeTab === 'history' ? 'conversations' :
+                    activeTab === 'actions' ? 'action history' :
+                    activeTab === 'analytics' ? 'analytics metrics' :
+                    activeTab === 'memory' ? 'personal memory' : 'settings'
+                  }.
+                </p>
               </div>
             </div>
           ) : (
