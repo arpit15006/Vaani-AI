@@ -69,6 +69,7 @@ async function handleChat(req, res) {
     let finalRouteResult = null;
     let finalExecResult = null;
     const allActionsLog = [];
+    const executedTools = new Set(); // Track tools to prevent duplicate calls
 
     while (loopCount < MAX_LOOPS) {
       loopCount++;
@@ -83,18 +84,33 @@ async function handleChat(req, res) {
       const routeResult = await routeTools(planResult.steps);
       finalRouteResult = routeResult;
 
-      if (routeResult.trace.decision === "Tool required") {
-        const toolNames = planResult.steps.map(s => s.tool).filter(t => t && t !== "none").join(", ");
-        if (toolNames) streamStatus(`Executing tools: ${toolNames}...`);
-        else streamStatus("Evaluating required actions...");
-      } else {
+      // Break early: if planner says no tools needed, we're done
+      const requestedTools = planResult.steps.map(s => s.tool).filter(t => t && t !== "none");
+      const isToolRequired = routeResult.trace.decision === "Tool required";
+      const onlyNoneTools = requestedTools.length === 0;
+
+      if (!isToolRequired || onlyNoneTools) {
         if (loopCount === 1) streamStatus("Generating conversational response...");
+        // Still execute to get the LLM's conversational response
+        const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName);
+        finalExecResult = execResult;
+        if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
+        break;
       }
+
+      // Prevent duplicate tool calls (e.g., sending same email 3x)
+      const newTools = requestedTools.filter(t => !executedTools.has(t));
+      if (newTools.length === 0 && loopCount > 1) {
+        break; // All requested tools already executed — stop looping
+      }
+
+      const toolNames = newTools.join(", ");
+      if (toolNames) streamStatus(`Executing tools: ${toolNames}...`);
 
       // 3. Executor
       const execResult = await execute(
         routeResult,
-        message, // Pass original message for context (like email drafts)
+        message,
         history,
         accessToken,
         memoryContext,
@@ -103,16 +119,14 @@ async function handleChat(req, res) {
       finalExecResult = execResult;
 
       if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
+      requestedTools.forEach(t => executedTools.add(t));
 
-      // Loop Break Conditions
-      const isToolRequired = routeResult.trace.decision === "Tool required";
-      const onlyNoneTools = planResult.steps.every(s => s.tool === "none");
-      
-      if (!isToolRequired || onlyNoneTools) {
-        break; // Task complete or generic conversational response
+      // Single-tool tasks: break after first successful execution
+      if (requestedTools.length <= 1) {
+        break;
       }
 
-      // Loop feedback integration
+      // Multi-step: feed result back to planner for next step
       currentFeedbackMessage = `Original Request: "${message}". Previous tool output: "${execResult.response}". If the task is fully complete, use tool "none". If another step is required to fulfill the user's Original Request, output the exact tool needed.`;
     }
 
