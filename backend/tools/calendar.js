@@ -19,12 +19,28 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
     const now = getNowInTimezone(userTimezone);
 
     let start, end;
+    let durationMs = 60 * 60 * 1000; // default 1 hour
+
+    // Detect if 'time' is actually a duration (e.g. "20 minutes", "30 min", "1 hour")
+    const durationMatch = (time || "").match(/(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
+    if (durationMatch) {
+      const durationVal = parseInt(durationMatch[1]);
+      const durationUnit = durationMatch[2].toLowerCase();
+      if (durationUnit.startsWith("min")) {
+        durationMs = durationVal * 60 * 1000;
+      } else {
+        durationMs = durationVal * 60 * 60 * 1000;
+      }
+      // If time was a duration, don't pass it to parseDateTime as a clock time
+      time = null;
+    }
+
     if (startDateTime) {
       start = new Date(startDateTime);
-      end = endDateTime ? new Date(endDateTime) : new Date(start.getTime() + 60 * 60 * 1000);
+      end = endDateTime ? new Date(endDateTime) : new Date(start.getTime() + durationMs);
     } else {
       start = parseDateTime(date, time, now);
-      end = new Date(start.getTime() + 60 * 60 * 1000);
+      end = new Date(start.getTime() + durationMs);
     }
 
     const event = {
@@ -229,7 +245,20 @@ function parseDateOnly(dateStr, now) {
     }
   }
 
-  // 2. Relative date matching
+  // 2. Relative time matching ("in 15 min", "next 15 min", "15 minutes from now", "in 2 hours")
+  const relativeMatch = lower.match(/(?:in|next|after)\s+(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
+  if (relativeMatch) {
+    const amount = parseInt(relativeMatch[1]);
+    const unit = relativeMatch[2].toLowerCase();
+    if (unit.startsWith("min")) {
+      result.setMinutes(result.getMinutes() + amount);
+    } else {
+      result.setHours(result.getHours() + amount);
+    }
+    return result;
+  }
+
+  // 3. Relative date matching
   if (lower.includes("tomorrow")) {
     result.setDate(result.getDate() + 1);
     return result;
