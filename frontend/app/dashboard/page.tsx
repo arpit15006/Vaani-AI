@@ -158,7 +158,7 @@ function DashboardContent() {
       eventSource = new EventSource(`${apiUrl}/api/notifications/stream?token=${accessToken}${emailQuery}&tz=${tz}`);
 
       eventSource.onopen = () => {
-        console.log("🤖 [Proactive AI] Connected to Jarvis engine");
+        console.log("🤖 [Proactive AI] Connected to Vaani engine");
         setSseConnected(true);
       };
 
@@ -172,7 +172,7 @@ function DashboardContent() {
           if (data.type === "proactive_alert") {
              // 1. Non-voice visual fallback (always show)
              addToast({ 
-               title: "✦ Jarvis Alert", 
+               title: "✦ Vaani Alert", 
                description: data.message, 
                variant: "default"
              });

@@ -89,7 +89,7 @@ export function SettingsPanel({ token, email }: { token: string | null, email: s
                   Proactive Agent (Phase 4)
                   <span className="text-[10px] bg-blue-500/20 text-blue-500 px-1.5 rounded uppercase tracking-wider">New</span>
                 </div>
-                <div className="text-sm text-muted-foreground">Jarvis will speak to you unprompted for important events.</div>
+                <div className="text-sm text-muted-foreground">Vaani will speak to you unprompted for important events.</div>
               </div>
               <Button 
                 variant={proactiveEnabled ? "default" : "outline"}
