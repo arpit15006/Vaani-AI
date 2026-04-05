@@ -18,6 +18,8 @@ async function createCalendarEvent({ title, date, time, duration, summary, start
     const eventTitle = title || summary || "Meeting";
     const now = getNowInTimezone(userTimezone);
 
+    console.log("[Tool:Calendar:Create] Input:", { title, date, time, duration, timezone: userTimezone, nowLocal: toLocalISO(now) });
+
     let start, end;
     let durationMs = 60 * 60 * 1000; // default 1 hour
 
@@ -62,6 +64,8 @@ async function createCalendarEvent({ title, date, time, duration, summary, start
         timeZone: userTimezone 
       },
     };
+
+    console.log("[Tool:Calendar:Create] Sending to Google:", JSON.stringify(event));
 
     const response = await calendar.events.insert({ calendarId: "primary", resource: event });
 
