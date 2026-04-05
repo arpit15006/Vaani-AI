@@ -7,7 +7,7 @@ function getCalendarClient(accessToken) {
 }
 
 // ==================== CREATE ====================
-async function createCalendarEvent({ title, date, time, summary, startDateTime, endDateTime, accessToken, timezone }) {
+async function createCalendarEvent({ title, date, time, duration, summary, startDateTime, endDateTime, accessToken, timezone }) {
   const userTimezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   try {
     if (!accessToken) {
@@ -21,18 +21,26 @@ async function createCalendarEvent({ title, date, time, summary, startDateTime, 
     let start, end;
     let durationMs = 60 * 60 * 1000; // default 1 hour
 
-    // Detect if 'time' is actually a duration (e.g. "20 minutes", "30 min", "1 hour")
-    const durationMatch = (time || "").match(/(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
-    if (durationMatch) {
-      const durationVal = parseInt(durationMatch[1]);
-      const durationUnit = durationMatch[2].toLowerCase();
-      if (durationUnit.startsWith("min")) {
-        durationMs = durationVal * 60 * 1000;
-      } else {
-        durationMs = durationVal * 60 * 60 * 1000;
+    // 1. Check explicit duration param from planner (e.g. duration: "20")
+    if (duration) {
+      const dVal = parseInt(duration);
+      if (!isNaN(dVal) && dVal > 0) {
+        durationMs = dVal * 60 * 1000;
       }
-      // If time was a duration, don't pass it to parseDateTime as a clock time
-      time = null;
+    }
+    // 2. Fallback: Detect if 'time' is actually a duration string (e.g. "20 minutes")
+    else {
+      const durationMatch = (time || "").match(/(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
+      if (durationMatch) {
+        const durationVal = parseInt(durationMatch[1]);
+        const durationUnit = durationMatch[2].toLowerCase();
+        if (durationUnit.startsWith("min")) {
+          durationMs = durationVal * 60 * 1000;
+        } else {
+          durationMs = durationVal * 60 * 60 * 1000;
+        }
+        time = null;
+      }
     }
 
     if (startDateTime) {

@@ -123,7 +123,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
           if (toolName === "email") {
             draftSummary = `📧 **Email Draft (Updated)**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
           } else if (toolName.includes("calendar")) {
-            draftSummary = `📅 **Calendar Event Draft (Updated)**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}`;
+            draftSummary = `📅 **Calendar Event Draft (Updated)**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}${displayParams.duration ? `\n• Duration: ${displayParams.duration} minutes` : ""}`;
           } else {
             draftSummary = JSON.stringify(displayParams, null, 2);
           }
@@ -152,7 +152,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       // 2. Planner (Decision Engine)
-      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent, pendingAction);
+      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent, pendingAction, timezone);
       if (i === 0) finalPlanResult = planResult; // Keep tracking the initial plan
 
       streamStatus(i > 0 ? `Thinking: Step ${i+1}...` : "Formulating execution plan...");

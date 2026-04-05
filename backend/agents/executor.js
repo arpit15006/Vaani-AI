@@ -92,7 +92,7 @@ FORMAT:
                } else if (toolName === "calendar_delete") {
                  draftSummary = `📅 **Calendar Delete Draft**\n• Event: ${displayParams.title || "N/A"}\n• Date: ${displayParams.date || "N/A"}${displayParams.eventId ? `\n• Event ID: ${displayParams.eventId}` : ""}`;
                } else if (toolName.includes("calendar")) {
-                 draftSummary = `📅 **Calendar Event Draft**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}`;
+                 draftSummary = `📅 **Calendar Event Draft**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}${displayParams.duration ? `\n• Duration: ${displayParams.duration} minutes` : ""}`;
                } else {
                  draftSummary = JSON.stringify(displayParams, null, 2);
                }
