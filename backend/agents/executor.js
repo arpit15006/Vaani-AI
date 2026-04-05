@@ -87,6 +87,10 @@ FORMAT:
                let draftSummary = "";
                if (toolName === "email") {
                  draftSummary = `📧 **Email Draft**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
+               } else if (toolName === "calendar_update") {
+                 draftSummary = `📅 **Calendar Update Draft**\n• Event: ${displayParams.title || displayParams.newTitle || "N/A"}\n• New Date: ${displayParams.newDate || "unchanged"}\n• New Time: ${displayParams.newTime || "unchanged"}${displayParams.newTitle ? `\n• New Title: ${displayParams.newTitle}` : ""}`;
+               } else if (toolName === "calendar_delete") {
+                 draftSummary = `📅 **Calendar Delete Draft**\n• Event: ${displayParams.title || "N/A"}\n• Date: ${displayParams.date || "N/A"}${displayParams.eventId ? `\n• Event ID: ${displayParams.eventId}` : ""}`;
                } else if (toolName.includes("calendar")) {
                  draftSummary = `📅 **Calendar Event Draft**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}`;
                } else {

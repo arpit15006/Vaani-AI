@@ -82,7 +82,7 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
     // Build time range
     let timeMin, timeMax;
     if (date) {
-      const parsed = parseDateOnly(date, now);
+      const parsed = parseDateOnly(date, now).date;
       timeMin = new Date(parsed);
       timeMin.setHours(0, 0, 0, 0);
       timeMax = new Date(parsed);
@@ -231,21 +231,23 @@ async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime,
 
 // ==================== HELPERS ====================
 function parseDateOnly(dateStr, now) {
-  if (!dateStr) return now;
+  if (!dateStr) return { date: now, isRelativeTime: false };
   const result = new Date(now);
   const lower = dateStr.toLowerCase();
 
   // 1. Try native Date parsing first if string contains a number (e.g., "Oct 15", "2026-10-15")
-  // This prevents issues where something like "Wednesday, Oct 15" gets incorrectly set to "next Wednesday".
   const cleanedStr = dateStr.replace(/\s+at\s+/i, ' ');
   if (/\d/.test(cleanedStr)) {
-    const parsed = new Date(cleanedStr);
-    if (!isNaN(parsed.getTime())) {
-      return parsed;
+    // But skip if it looks like a relative expression ("in 15 min", "next 15 min")
+    if (!/(?:in|next|after)\s+\d+\s*(min|minute|minutes|hr|hour|hours)/i.test(lower)) {
+      const parsed = new Date(cleanedStr);
+      if (!isNaN(parsed.getTime())) {
+        return { date: parsed, isRelativeTime: false };
+      }
     }
   }
 
-  // 2. Relative time matching ("in 15 min", "next 15 min", "15 minutes from now", "in 2 hours")
+  // 2. Relative time matching ("in 15 min", "next 15 min", "after 2 hours")
   const relativeMatch = lower.match(/(?:in|next|after)\s+(\d+)\s*(min|minute|minutes|hr|hour|hours)/i);
   if (relativeMatch) {
     const amount = parseInt(relativeMatch[1]);
@@ -255,44 +257,51 @@ function parseDateOnly(dateStr, now) {
     } else {
       result.setHours(result.getHours() + amount);
     }
-    return result;
+    return { date: result, isRelativeTime: true };
   }
 
   // 3. Relative date matching
   if (lower.includes("tomorrow")) {
     result.setDate(result.getDate() + 1);
-    return result;
+    return { date: result, isRelativeTime: false };
   }
   if (lower.includes("today")) {
-    return result;
+    return { date: result, isRelativeTime: false };
   }
   if (lower.includes("next week")) {
     result.setDate(result.getDate() + 7);
-    return result;
+    return { date: result, isRelativeTime: false };
   }
 
-  // 3. Day name matching
+  // 4. Day name matching
   const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const dayIndex = days.findIndex(day => lower.includes(day));
 
   if (dayIndex !== -1) {
     const currentDay = result.getDay();
     let daysToAdd = dayIndex - currentDay;
-    if (daysToAdd <= 0) daysToAdd += 7; // Next occurrence
+    if (daysToAdd <= 0) daysToAdd += 7;
     result.setDate(result.getDate() + daysToAdd);
-    return result;
+    return { date: result, isRelativeTime: false };
   }
 
   const parsed = new Date(dateStr);
   if (!isNaN(parsed.getTime())) {
-    return parsed;
+    return { date: parsed, isRelativeTime: false };
   }
 
-  return result;
+  return { date: result, isRelativeTime: false };
 }
 
 function parseDateTime(dateStr, timeStr, now) {
-  let result = parseDateOnly(dateStr, now);
+  const parsed = parseDateOnly(dateStr, now);
+  let result = parsed.date;
+
+  // If parseDateOnly already computed a precise relative time ("in 15 min"),
+  // do NOT override with hour-rounding. The time is already exact.
+  if (parsed.isRelativeTime && !timeStr) {
+    return result;
+  }
 
   if (timeStr) {
     const timeLower = timeStr.toLowerCase();
@@ -312,13 +321,12 @@ function parseDateTime(dateStr, timeStr, now) {
     } else if (timeLower.includes("midnight")) {
       result.setHours(0, 0, 0, 0);
     } else if (timeLower.includes("afternoon")) {
-      result.setHours(14, 0, 0, 0); // 2 PM default
+      result.setHours(14, 0, 0, 0);
     } else if (timeLower.includes("morning")) {
-      result.setHours(9, 0, 0, 0); // 9 AM default
+      result.setHours(9, 0, 0, 0);
     } else if (timeLower.includes("evening")) {
-      result.setHours(18, 0, 0, 0); // 6 PM default
+      result.setHours(18, 0, 0, 0);
     } else {
-      // Unrecognized time string, let's round to nearest hour to prevent random exact minutes
       if (result.getMinutes() > 0) {
         result.setHours(result.getHours() + 1, 0, 0, 0);
       } else {
@@ -326,8 +334,7 @@ function parseDateTime(dateStr, timeStr, now) {
       }
     }
   } else {
-    // If no time is explicitly provided, avoid random exact current times.
-    // Round to the next whole hour.
+    // No time provided and not a relative offset — round to next whole hour
     if (result.getMinutes() > 0) {
       result.setHours(result.getHours() + 1, 0, 0, 0);
     } else {
