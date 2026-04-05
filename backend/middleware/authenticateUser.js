@@ -13,9 +13,15 @@ const { google } = require("googleapis");
 async function authenticateUser(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
+    let accessToken = null;
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      const accessToken = authHeader.split(" ")[1];
+      accessToken = authHeader.split(" ")[1];
+    } else if (req.query && req.query.token) {
+      accessToken = req.query.token;
+    }
+
+    if (accessToken) {
       req.accessToken = accessToken;
 
       // Try to find user by stored email

@@ -49,6 +49,7 @@ function DashboardContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(true)
+  const [proactiveEnabled, setProactiveEnabled] = useState(true)
   
   // Dashboard UI State
   const [activeTab, setActiveTab] = useState("chat")
@@ -86,6 +87,7 @@ function DashboardContent() {
 
     setWakeWordEnabled(localStorage.getItem("vaaniai_wakeword") === "true")
     setTtsEnabled(localStorage.getItem("vaaniai_voice") !== "false")
+    setProactiveEnabled(localStorage.getItem("vaaniai_proactive") !== "false")
   }, [])
 
   // Handle OAuth callback
@@ -136,6 +138,64 @@ function DashboardContent() {
       handleSend(stt.transcript)
     }
   }, [stt.isListening, stt.transcript])
+
+  // ==========================================
+  // PROACTIVE AGENT (PHASE 4) SSE PIPELINE
+  // ==========================================
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+
+    let eventSource: EventSource | null = null;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connectSSE = () => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      
+      eventSource = new EventSource(`${apiUrl}/api/notifications/stream?token=${accessToken}&tz=${tz}`);
+
+      eventSource.onopen = () => console.log("🤖 [Proactive AI] Connected to Jarvis engine");
+
+      eventSource.onmessage = (event) => {
+        try {
+          // Keep-alive checks
+          if (event.data === ":") return; 
+
+          const data = JSON.parse(event.data);
+          
+          if (data.type === "proactive_alert") {
+             // 1. Non-voice visual fallback (always show)
+             addToast({ 
+               title: "Proactive Alert", 
+               description: data.message, 
+               variant: "default" 
+             });
+             
+             // 2. Interrupt Control & Voice (Respect user settings)
+             if (proactiveEnabled && ttsEnabled) {
+                tts.speak(data.message);
+             }
+          }
+        } catch (e) {
+           console.error("[SSE] Parse error", e);
+        }
+      };
+
+      eventSource.onerror = () => {
+        console.warn("🤖 [Proactive AI] Connection lost. Reconnecting in 10s...");
+        if (eventSource) eventSource.close();
+        reconnectTimer = setTimeout(connectSSE, 10000);
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      if (eventSource) eventSource.close();
+      clearTimeout(reconnectTimer);
+    };
+  }, [isAuthenticated, accessToken, proactiveEnabled, ttsEnabled, tts.speak, addToast]);
+  // ==========================================
 
   // Status management
   useEffect(() => {

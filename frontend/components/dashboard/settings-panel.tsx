@@ -10,17 +10,21 @@ export function SettingsPanel({ token, email }: { token: string | null, email: s
   
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false)
   const [voiceResponses, setVoiceResponses] = useState(true)
+  const [proactiveEnabled, setProactiveEnabled] = useState(true)
 
   useEffect(() => {
     const savedWakeWord = localStorage.getItem("vaaniai_wakeword") === "true"
     const savedVoice = localStorage.getItem("vaaniai_voice") !== "false"
+    const savedProactive = localStorage.getItem("vaaniai_proactive") !== "false"
     setWakeWordEnabled(savedWakeWord)
     setVoiceResponses(savedVoice)
+    setProactiveEnabled(savedProactive)
   }, [])
 
   const handleSave = () => {
     localStorage.setItem("vaaniai_wakeword", wakeWordEnabled ? "true" : "false")
     localStorage.setItem("vaaniai_voice", voiceResponses ? "true" : "false")
+    localStorage.setItem("vaaniai_proactive", proactiveEnabled ? "true" : "false")
     addToast({ description: "Settings saved successfully", variant: "success" })
     setTimeout(() => window.location.reload(), 1000)
   }
@@ -76,6 +80,22 @@ export function SettingsPanel({ token, email }: { token: string | null, email: s
                 onClick={() => setWakeWordEnabled(!wakeWordEnabled)}
               >
                 {wakeWordEnabled ? "Enabled" : "Disabled"}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-background/50">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 font-medium">
+                  Proactive Agent (Phase 4)
+                  <span className="text-[10px] bg-blue-500/20 text-blue-500 px-1.5 rounded uppercase tracking-wider">New</span>
+                </div>
+                <div className="text-sm text-muted-foreground">Jarvis will speak to you unprompted for important events.</div>
+              </div>
+              <Button 
+                variant={proactiveEnabled ? "default" : "outline"}
+                onClick={() => setProactiveEnabled(!proactiveEnabled)}
+              >
+                {proactiveEnabled ? "Enabled" : "Disabled"}
               </Button>
             </div>
           </CardContent>
