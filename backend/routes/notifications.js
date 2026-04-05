@@ -15,6 +15,7 @@ router.get("/stream", authenticateUser, (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders(); // Explicitly flush headers to establish the stream immediately
 
   const userId = req.userId;
   const timezone = req.query.tz || "UTC";
@@ -25,10 +26,10 @@ router.get("/stream", authenticateUser, (req, res) => {
   // Start the background intelligence tracker scoped ONLY to this active user
   startWatcher(userId, timezone);
 
-  // Keep connection alive with pongs every 30s
+  // Keep connection alive with pongs every 15s to bypass strict proxy timeouts
   const keepAlive = setInterval(() => {
     res.write(":\n\n"); // SSE comment to keep socket open
-  }, 30000);
+  }, 15000);
 
   // On Disconnect
   req.on("close", () => {
