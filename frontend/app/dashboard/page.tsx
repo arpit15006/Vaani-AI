@@ -153,8 +153,9 @@ function DashboardContent() {
     const connectSSE = () => {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      const emailQuery = userEmail ? `&email=${encodeURIComponent(userEmail)}` : '';
       
-      eventSource = new EventSource(`${apiUrl}/api/notifications/stream?token=${accessToken}&tz=${tz}`);
+      eventSource = new EventSource(`${apiUrl}/api/notifications/stream?token=${accessToken}${emailQuery}&tz=${tz}`);
 
       eventSource.onopen = () => {
         console.log("🤖 [Proactive AI] Connected to Jarvis engine");
@@ -200,7 +201,7 @@ function DashboardContent() {
       if (eventSource) eventSource.close();
       clearTimeout(reconnectTimer);
     };
-  }, [isAuthenticated, accessToken, proactiveEnabled, ttsEnabled, tts.speak, addToast]);
+  }, [isAuthenticated, accessToken, userEmail, proactiveEnabled, ttsEnabled, tts.speak, addToast]);
   // ==========================================
 
   // Status management

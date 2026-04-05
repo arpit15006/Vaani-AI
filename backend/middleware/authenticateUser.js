@@ -26,6 +26,10 @@ async function authenticateUser(req, res, next) {
 
       // Try to find user by stored email
       let email = req.headers["x-user-email"] || null;
+      if (!email && req.query && req.query.email) {
+        email = req.query.email;
+      }
+      
       let user = null;
 
       if (email) {
