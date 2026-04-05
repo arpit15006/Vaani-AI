@@ -19,8 +19,9 @@ Respond with JSON:
 }`;
 
 // Hardcoded keyword safety net — LLM was misclassifying these as direct_command
-const CONFIRM_KEYWORDS = ["yes", "yeah", "yep", "yup", "sure", "ok", "okay", "do it", "send it", "go ahead", "confirm", "execute", "proceed", "looks good", "ship it", "fire", "haan", "kar do", "bhej do", "approved"];
+const CONFIRM_KEYWORDS = ["yes", "yeah", "yep", "yup", "sure", "ok", "okay", "do it", "send it", "go ahead", "confirm", "execute", "proceed", "looks good", "ship it", "fire", "haan", "kar do", "bhej do", "approved", "add it", "add to calendar", "add to my calendar", "schedule it"];
 const CANCEL_KEYWORDS = ["no", "nah", "cancel", "discard", "nevermind", "never mind", "forget it", "nahi", "mat karo", "ruko", "stop"];
+const EDIT_KEYWORDS = ["change", "update", "modify", "edit", "switch", "make it", "set it to", "set to", "push to", "move to", "move it", "reschedule", "shift", "instead", "actually", "badal do", "change kar"];
 
 async function classifyIntent(userMessage, pendingAction = null) {
   const startTime = Date.now();
@@ -29,14 +30,16 @@ async function classifyIntent(userMessage, pendingAction = null) {
     if (pendingAction) {
       const lower = userMessage.toLowerCase().trim();
       
-      if (CONFIRM_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw + " ") || lower.endsWith(" " + kw))) {
+      // 1. EDIT takes highest priority — user wants to modify the draft
+      if (EDIT_KEYWORDS.some(kw => lower.includes(kw))) {
         const durationMs = Date.now() - startTime;
         return {
-          intent: "confirmation",
-          trace: { thinking: `Fast-path keyword match: "${lower}" detected as confirmation`, decision: "confirmation", durationMs }
+          intent: "edit_draft",
+          trace: { thinking: `Fast-path keyword match: "${lower}" detected as edit_draft`, decision: "edit_draft", durationMs }
         };
       }
-      
+
+      // 2. CANCEL — user wants to discard
       if (CANCEL_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw + " ") || lower.endsWith(" " + kw))) {
         const durationMs = Date.now() - startTime;
         return {
@@ -44,6 +47,17 @@ async function classifyIntent(userMessage, pendingAction = null) {
           trace: { thinking: `Fast-path keyword match: "${lower}" detected as cancel_draft`, decision: "cancel_draft", durationMs }
         };
       }
+
+      // 3. CONFIRM — user wants to execute. Use .includes() for phrases like "add it to calendar"
+      if (CONFIRM_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw + " ") || lower.endsWith(" " + kw) || lower.includes(kw))) {
+        const durationMs = Date.now() - startTime;
+        return {
+          intent: "confirmation",
+          trace: { thinking: `Fast-path keyword match: "${lower}" detected as confirmation`, decision: "confirmation", durationMs }
+        };
+      }
+
+      // 4. If none matched but pending action exists, let LLM decide (fallthrough)
     }
 
     const pendingContext = pendingAction 
