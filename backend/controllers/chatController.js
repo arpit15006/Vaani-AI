@@ -11,6 +11,7 @@ const { extractMemories } = require("../agents/memoryExtractor");
 const { getOrCreateConversation, saveMessage } = require("../services/conversationService");
 const { logAction } = require("../services/actionLogger");
 const { bgQueue } = require("../services/backgroundJobs");
+const { getPendingAction, setPendingAction, clearPendingAction } = require("../services/actionStore");
 
 async function handleChat(req, res) {
   const pipelineStart = Date.now();
@@ -64,8 +65,33 @@ async function handleChat(req, res) {
     }
 
     // === 1. INTENT CLASSIFIER ===
-    const intentRes = await classifyIntent(message);
+    const pendingAction = getPendingAction(userId);
+    const intentRes = await classifyIntent(message, pendingAction);
     const intent = intentRes.intent;
+
+    // === ROUTE PRE-CHECKS ===
+    if (intent === "cancel_draft") {
+      clearPendingAction(userId);
+      res.write(JSON.stringify({ type: "result", payload: { reply: "Alright, I've discarded the draft. What's next?", agentTrace: { intentClassifier: intentRes.trace } } }) + "\n");
+      return res.end();
+    }
+
+    if (intent === "confirmation" && pendingAction) {
+      // Execute the pending action immediately bypassing Planner Router
+      streamStatus("Executing confirmed action...");
+      
+      const mockRouteResult = {
+        steps: [{ step: "Execute confirmed template", routing: { requiresTool: true, toolName: pendingAction.tool }, params: pendingAction.params }],
+        trace: { decision: "Tool required", reasoning: "User confirmed draft" }
+      };
+
+      const execResult = await execute(mockRouteResult, message, history, accessToken, memoryContext, userName, timezone, "", true);
+      clearPendingAction(userId);
+      
+      const criticResult = await critique(execResult.response, execResult.action, message, memoryContext);
+      res.write(JSON.stringify({ type: "result", payload: { reply: criticResult.response, action: execResult.action, agentTrace: { intentClassifier: intentRes.trace, executor: execResult.trace, critic: criticResult.trace } } }) + "\n");
+      return res.end();
+    }
 
     // === FULL AGENT AUTO-LOOP PIPELINE ===
     const MAX_ITERATIONS = 3;
@@ -81,7 +107,7 @@ async function handleChat(req, res) {
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       // 2. Planner (Decision Engine)
-      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent);
+      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent, pendingAction);
       if (i === 0) finalPlanResult = planResult; // Keep tracking the initial plan
 
       streamStatus(i > 0 ? `Thinking: Step ${i+1}...` : "Formulating execution plan...");
@@ -115,6 +141,16 @@ async function handleChat(req, res) {
       const onlyNoneTools = requestedTools.length === 0;
 
       if (!isToolRequired || onlyNoneTools) {
+        if (i === 0 && isToolRequired) {
+          // HALLUCINATION GUARD: Router failed to map a tool even though it claimed one was needed.
+          streamStatus("Execution failed safely...");
+          finalExecResult = {
+            response: "I couldn’t complete that action due to a system issue. Let me try again or you can rephrase.",
+            action: null,
+            trace: { thinking: "Hallucination guard triggered (Tool Required but None Mapped)", result: "Rejected" }
+          };
+          break;
+        }
         if (i === 0) streamStatus("Generating conversational response...");
         const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName, timezone);
         finalExecResult = execResult;
@@ -143,6 +179,14 @@ async function handleChat(req, res) {
         currentFeedbackMessage // Pass accumulated context so executor uses it
       );
       finalExecResult = execResult;
+
+      // Handle Pending Action State (Dry-Run Drafts)
+      if (execResult.pendingAction) {
+        setPendingAction(userId, execResult.pendingAction);
+        // Break out of the loop! We need confirmation.
+        break;
+      }
+      
       if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
       requestedTools.forEach(t => executedTools.add(t));
 

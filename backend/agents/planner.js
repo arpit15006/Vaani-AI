@@ -23,6 +23,7 @@ MACRO ROUTINES:
 - If intent === "meeting_prep": ALWAYS return steps for [calendar_list] and [email_list].
 - If intent === "implicit_weather": ALWAYS return step for [weather].
 - If intent === "direct_command": Map directly to the requested tool.
+- If intent === "edit_draft": You will be provided with the current pending action payload. Your ONLY job is to output the EXACT same tool but with the params modified exactly as the user requested. If the user asks to change the subject, only change the subject.
 - If intent === "casual_query": Use tool "none".
 
 For each step, specify:
@@ -53,7 +54,7 @@ User: "Hello, how are you?"
 User: "Send an email to john@example.com about the project update"
 {"steps": [{"step": "Send email about project update", "tool": "email", "params": {"to": "john@example.com", "subject": "Project Update", "body": "Here is the latest project update."}}]}`;
 
-async function plan(message, history = [], memoryContext = "", intent = "casual_query") {
+async function plan(message, history = [], memoryContext = "", intent = "casual_query", pendingAction = null) {
   const startTime = Date.now();
 
   try {
@@ -66,7 +67,13 @@ async function plan(message, history = [], memoryContext = "", intent = "casual_
       : "";
 
     const currentDate = new Date().toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
-    const timeContext = `\n[SYSTEM] Current Date & Time: ${currentDate}\n[SYSTEM] Classified Intent: ${intent}\n`;
+    
+    let pendingContext = "";
+    if (pendingAction) {
+       pendingContext = `\n[SYSTEM PENDING DRAFT]: {\"tool\": \"${pendingAction.tool}\", \"params\": ${JSON.stringify(pendingAction.params)}}\n`;
+    }
+
+    const timeContext = `\n[SYSTEM] Current Date & Time: ${currentDate}\n[SYSTEM] Classified Intent: ${intent}\n${pendingContext}`;
 
     const result = await generateJSON(
       `${timeContext}${memoryBlock}${context}\nUser message: "${message}"`,

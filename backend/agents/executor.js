@@ -15,7 +15,7 @@ const toolFunctions = {
   weather: getWeather,
 };
 
-async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "", timezone = "UTC") {
+async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "", timezone = "UTC", previousContext = "", isConfirmed = false) {
   const startTime = Date.now();
   const routedSteps = routeResult.steps;
   const routerDecision = routeResult.trace.decision;
@@ -23,6 +23,8 @@ async function execute(routeResult, message, history = [], accessToken = null, m
   let toolCalled = null;
   let actionPerformed = null;
   const actionsLog = []; // For action history logging
+  const destructiveTools = ["email", "calendar", "calendar_create", "calendar_delete", "calendar_update"];
+  let pendingActionPayload = null;
 
   try {
     for (let i = 0; i < routedSteps.length; i++) {
@@ -68,8 +70,30 @@ FORMAT:
               paramsToPass.body = draftedBody;
             }
 
-            const toolResult = await toolFn(paramsToPass);
             const toolName = step.routing.toolName;
+            const isDestructive = destructiveTools.includes(toolName);
+
+            // === DRY RUN MODE (Safety Confirmation) ===
+            if (isDestructive && !isConfirmed) {
+               // Store as pending action without invoking the real tool
+               pendingActionPayload = { tool: toolName, params: paramsToPass };
+               stepResults.push({
+                 step: step.step,
+                 tool: toolName,
+                 summary: "Drafted successfully. Waiting for confirmation.",
+                 success: true,
+                 isDryRun: true,
+                 toolResult: {
+                    success: true,
+                    message: `I have drafted the ${toolName === 'email' ? 'email' : 'action'}. Here are the details:\n${JSON.stringify(paramsToPass, null, 2)}\n\nWould you like me to execute this, or do you want to edit anything?`
+                 }
+               });
+               toolCalled = toolName;
+               continue; // SKIP ACTUAL EXECUTION
+            }
+
+            // === ACTUAL EXECUTION ===
+            const toolResult = await toolFn(paramsToPass);
 
             // Build step result for chaining
             const summary = toolResult.success
@@ -153,8 +177,9 @@ FORMAT:
     }
 
     return {
-      response: combinedResponse,
+      response: combinedResponse || "Task processed.",
       action: actionPerformed,
+      pendingAction: pendingActionPayload,
       actionsLog, // Expose for actionLogger
       trace: {
         thinking: routerDecision !== "Tool required"
