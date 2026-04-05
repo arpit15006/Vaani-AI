@@ -1,6 +1,7 @@
 const { plan } = require("../agents/planner");
 const { routeTools } = require("../agents/toolRouter");
 const { execute } = require("../agents/executor");
+const { observe } = require("../agents/observer");
 const { critique } = require("../agents/critic");
 const { runSystemTest } = require("../services/systemTest");
 const { getMemoryContext } = require("../services/memoryService");
@@ -61,74 +62,76 @@ async function handleChat(req, res) {
     }
 
     // === FULL AGENT AUTO-LOOP PIPELINE ===
-    let loopCount = 0;
-    const MAX_LOOPS = 3;
+    const MAX_ITERATIONS = 3;
     let currentFeedbackMessage = message;
     
     let finalPlanResult = null;
     let finalRouteResult = null;
     let finalExecResult = null;
+    let finalTrace = {};
     const allActionsLog = [];
-    const executedTools = new Set(); // Track tools to prevent duplicate calls
+    const executedTools = new Set();
+    const observerTraceLog = [];
 
-    while (loopCount < MAX_LOOPS) {
-      loopCount++;
-
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
       // 1. Planner
       const planResult = await plan(currentFeedbackMessage, history, memoryContext);
-      finalPlanResult = planResult;
+      if (i === 0) finalPlanResult = planResult; // Keep tracking the initial plan
 
-      streamStatus(loopCount > 1 ? "Evaluating next execution step..." : "Formulating execution plan...");
+      streamStatus(i > 0 ? `Thinking: Step ${i+1}...` : "Formulating execution plan...");
 
       // 2. Tool Router
       const routeResult = await routeTools(planResult.steps);
-      finalRouteResult = routeResult;
+      if (i === 0) finalRouteResult = routeResult;
 
-      // Break early: if planner says no tools needed, we're done
       const requestedTools = planResult.steps.map(s => s.tool).filter(t => t && t !== "none");
       const isToolRequired = routeResult.trace.decision === "Tool required";
       const onlyNoneTools = requestedTools.length === 0;
 
       if (!isToolRequired || onlyNoneTools) {
-        if (loopCount === 1) streamStatus("Generating conversational response...");
-        // Still execute to get the LLM's conversational response
+        if (i === 0) streamStatus("Generating conversational response...");
         const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName, timezone);
         finalExecResult = execResult;
         if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
-        break;
+        break; // No further tools requested. End immediately.
       }
 
-      // Prevent duplicate tool calls (e.g., sending same email 3x)
+      // Prevent duplicate tools
       const newTools = requestedTools.filter(t => !executedTools.has(t));
-      if (newTools.length === 0 && loopCount > 1) {
-        break; // All requested tools already executed — stop looping
+      if (newTools.length === 0 && i > 0) {
+        break; // Prevent infinite identical tool loops
       }
 
       const toolNames = newTools.join(", ");
-      if (toolNames) streamStatus(`Executing tools: ${toolNames}...`);
+      if (toolNames) streamStatus(`Executing: ${toolNames}...`);
 
       // 3. Executor
       const execResult = await execute(
         routeResult,
-        message,
+        message, // Pass original message + current context if needed
         history,
         accessToken,
         memoryContext,
         userName,
-        timezone
+        timezone,
+        currentFeedbackMessage // Pass accumulated context so executor uses it
       );
       finalExecResult = execResult;
-
       if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
       requestedTools.forEach(t => executedTools.add(t));
 
-      // Single-tool tasks: break after first successful execution
-      if (requestedTools.length <= 1) {
-        break;
-      }
+      // 4. Observer
+      streamStatus("Analyzing results...");
+      const observation = await observe(message, execResult.response);
+      observerTraceLog.push(observation.trace);
+      finalTrace.observer = observation.trace;
 
-      // Multi-step: feed result back to planner for next step
-      currentFeedbackMessage = `Original Request: "${message}". Previous tool output: "${execResult.response}". If the task is fully complete, use tool "none". If another step is required to fulfill the user's Original Request, output the exact tool needed.`;
+      if (observation.taskCompleted) {
+        break;
+      } else {
+        // Inject results for next iteration
+        currentFeedbackMessage = `Original Task: "${message}".\n\nPrevious Action Result: "${execResult.response}".\n\nObserver feedback: ${observation.nextStep || "Proceed with next logical step."}`;
+      }
     }
 
     finalExecResult.actionsLog = allActionsLog; // Collapse logs for background tracking
@@ -167,8 +170,9 @@ async function handleChat(req, res) {
       conversationId,
       agentTrace: {
         planner: finalPlanResult.trace,
-        toolRouter: finalRouteResult.trace,
-        executor: { ...finalExecResult.trace, rawContext: finalExecResult.response },
+        toolRouter: finalRouteResult ? finalRouteResult.trace : null,
+        executor: { ...(finalExecResult ? finalExecResult.trace : {}), rawContext: finalExecResult ? finalExecResult.response : "" },
+        observer: finalTrace.observer || null,
         critic: criticResult.trace,
         totalDurationMs,
       },
