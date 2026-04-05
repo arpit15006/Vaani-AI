@@ -87,19 +87,25 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
     const calendar = getCalendarClient(accessToken);
     const now = getNowInTimezone(userTimezone);
 
+    console.log("[Tool:Calendar:List] Input:", { date, query, timezone: userTimezone, nowLocal: toLocalISO(now) });
+
     // Build time range using the USER'S timezone, NOT the server's UTC
     let timeMin, timeMax;
     if (date) {
-      const parsed = parseDateOnly(date, now).date;
-      // Construct ISO strings representing start/end of day in user's timezone
-      const pad = (n) => n.toString().padStart(2, '0');
-      const y = parsed.getFullYear();
-      const m = pad(parsed.getMonth() + 1);
-      const d = pad(parsed.getDate());
-      // Use the Google Calendar API's timeZone param to interpret these correctly
-      timeMin = `${y}-${m}-${d}T00:00:00`;
-      timeMax = `${y}-${m}-${d}T23:59:59`;
+      // Try to extract YYYY-MM-DD directly from the string (most reliable method)
+      const isoMatch = date.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (isoMatch) {
+        // Direct extraction — no Date object timezone traps
+        timeMin = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T00:00:00`;
+        timeMax = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T23:59:59`;
+      } else {
+        // Fallback: parse natural language dates via parseDateOnly
+        const parsed = parseDateOnly(date, now).date;
+        timeMin = `${toLocalISO(parsed).split('T')[0]}T00:00:00`;
+        timeMax = `${toLocalISO(parsed).split('T')[0]}T23:59:59`;
+      }
     } else {
+      // No date specified — show from now until 7 days later
       timeMin = toLocalISO(now);
       const futureDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       timeMax = toLocalISO(futureDate);
@@ -116,8 +122,12 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
     };
     if (query) params.q = query;
 
+    console.log("[Tool:Calendar:List] Google API params:", JSON.stringify(params));
+
     const response = await calendar.events.list(params);
     const events = response.data.items || [];
+
+    console.log("[Tool:Calendar:List] Got", events.length, "events");
 
     if (events.length === 0) {
       return { success: true, message: "You have no events scheduled for that time period.", data: { events: [] } };
@@ -226,8 +236,8 @@ async function updateCalendarEvent({ eventId, title, newTitle, newDate, newTime,
       const duration = new Date(existing.data.end.dateTime || existing.data.end.date).getTime() - currentStart.getTime();
       const updatedEnd = new Date(updatedStart.getTime() + duration);
 
-      patch.start = { dateTime: updatedStart.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-      patch.end = { dateTime: updatedEnd.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+      patch.start = { dateTime: toLocalISO(updatedStart), timeZone: userTimezone };
+      patch.end = { dateTime: toLocalISO(updatedEnd), timeZone: userTimezone };
     }
 
     const response = await calendar.events.patch({ calendarId: "primary", eventId, resource: patch });
