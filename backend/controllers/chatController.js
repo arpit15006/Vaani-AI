@@ -208,8 +208,17 @@ async function handleChat(req, res) {
 
     streamStatus("Polishing voice output...");
 
-    // 4. Critic
-    const criticResult = await critique(finalExecResult.response, finalExecResult.action, message, memoryContext);
+    // 4. Critic (Bypass if waiting for confirmation to preserve raw draft JSON and prevent hallucination of success)
+    let finalReply = finalExecResult.response;
+    let criticTrace = null;
+    
+    if (!finalExecResult.pendingAction) {
+       const criticResult = await critique(finalExecResult.response, finalExecResult.action, message, memoryContext);
+       finalReply = criticResult.response;
+       criticTrace = criticResult.trace;
+    } else {
+       criticTrace = { thinking: "Bypassed critic to retain strict dry-run JSON formatting.", durationMs: 0 };
+    }
 
     // 5. Get/Create Conversation ID
     let conversationId = null;
@@ -225,16 +234,15 @@ async function handleChat(req, res) {
     let suggestions = [];
     try {
       const { generateSuggestions } = require("../agents/suggestionGenerator");
-      suggestions = await generateSuggestions(history, message, criticResult.response, memoryContext);
+      suggestions = await generateSuggestions(history, message, finalReply, memoryContext);
     } catch (err) {
       console.error("[Chat] Suggestion generation failed:", err.message);
     }
 
     const totalDurationMs = Date.now() - pipelineStart;
 
-    // === SEND FINAL RESPONSE ===
     const responsePayload = {
-      reply: criticResult.response,
+      reply: finalReply,
       action: finalExecResult.action,
       suggestions,
       conversationId,
@@ -245,7 +253,7 @@ async function handleChat(req, res) {
         toolRouter: finalRouteResult ? finalRouteResult.trace : null,
         executor: { ...(finalExecResult ? finalExecResult.trace : {}), rawContext: finalExecResult ? finalExecResult.response : "" },
         observer: finalTrace.observer || null,
-        critic: criticResult.trace,
+        critic: criticTrace,
         totalDurationMs,
       },
     };
@@ -262,7 +270,7 @@ async function handleChat(req, res) {
       bgQueue.enqueue(async () => {
         try {
           await saveMessage(conversationId, "user", message);
-          await saveMessage(conversationId, "assistant", criticResult.response, finalExecResult.action, responsePayload.agentTrace);
+          await saveMessage(conversationId, "assistant", finalReply, finalExecResult.action, responsePayload.agentTrace);
         } catch (err) {
           console.error("[Chat:BG] Message save failed:", err.message);
         }
