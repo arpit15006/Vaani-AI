@@ -1,5 +1,5 @@
 const { getDecryptedTokens, updateTokens } = require("./userService");
-const fetch = require("node-fetch"); // Or use global fetch if Node 18+
+// Node 18+ has global fetch built-in, no need for node-fetch
 
 async function refreshGoogleAccessToken(userId, refreshToken) {
   try {

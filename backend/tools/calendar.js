@@ -93,33 +93,51 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
 
     console.log("[Tool:Calendar:List] Input:", { date, query, timezone: userTimezone, nowLocal: toLocalISO(now) });
 
-    // Build time range using the USER'S timezone, NOT the server's UTC
+    // Helper: compute timezone offset string like "+05:30" or "-04:00"
+    function getTimezoneOffsetStr(tz) {
+      try {
+        const refDate = new Date();
+        const utcStr = refDate.toLocaleString('en-US', { timeZone: 'UTC' });
+        const tzStr = refDate.toLocaleString('en-US', { timeZone: tz });
+        const offsetMs = new Date(tzStr) - new Date(utcStr);
+        const offsetMin = offsetMs / 60000;
+        const sign = offsetMin >= 0 ? '+' : '-';
+        const absMin = Math.abs(offsetMin);
+        const hh = String(Math.floor(absMin / 60)).padStart(2, '0');
+        const mm = String(absMin % 60).padStart(2, '0');
+        return `${sign}${hh}:${mm}`;
+      } catch (e) {
+        return '+00:00'; // Fallback to UTC
+      }
+    }
+
+    const tzOffset = getTimezoneOffsetStr(userTimezone);
+
+    // Build time range — Google Calendar API requires RFC3339 format for timeMin/timeMax
     let timeMin, timeMax;
     if (date) {
       // Try to extract YYYY-MM-DD directly from the string (most reliable method)
       const isoMatch = date.match(/(\d{4})-(\d{2})-(\d{2})/);
       if (isoMatch) {
-        // Direct extraction — no Date object timezone traps
-        timeMin = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T00:00:00`;
-        timeMax = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T23:59:59`;
+        timeMin = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T00:00:00${tzOffset}`;
+        timeMax = `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}T23:59:59${tzOffset}`;
       } else {
-        // Fallback: parse natural language dates via parseDateOnly
         const parsed = parseDateOnly(date, now).date;
-        timeMin = `${toLocalISO(parsed).split('T')[0]}T00:00:00`;
-        timeMax = `${toLocalISO(parsed).split('T')[0]}T23:59:59`;
+        const datePrefix = toLocalISO(parsed).split('T')[0];
+        timeMin = `${datePrefix}T00:00:00${tzOffset}`;
+        timeMax = `${datePrefix}T23:59:59${tzOffset}`;
       }
     } else {
-      // No date specified — show from now until 7 days later
-      timeMin = toLocalISO(now);
+      timeMin = `${toLocalISO(now)}${tzOffset}`;
       const futureDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      timeMax = toLocalISO(futureDate);
+      timeMax = `${toLocalISO(futureDate)}${tzOffset}`;
     }
 
     const params = {
       calendarId: "primary",
       timeMin: timeMin,
       timeMax: timeMax,
-      timeZone: userTimezone, // Let Google handle timezone conversion!
+      timeZone: userTimezone,
       maxResults,
       singleEvents: true,
       orderBy: "startTime",

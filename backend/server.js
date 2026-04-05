@@ -9,6 +9,7 @@ const userRoutes = require("./routes/user");
 const notificationRoutes = require("./routes/notifications");
 
 const app = express();
+app.set('trust proxy', 1); // Trust Render's reverse proxy for rate limiting
 const PORT = process.env.PORT || 5000;
 
 // === CORS (Production-ready: supports multiple origins) ===
