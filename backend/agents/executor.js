@@ -77,6 +77,22 @@ FORMAT:
             if (isDestructive && !isConfirmed) {
                // Store as pending action without invoking the real tool
                pendingActionPayload = { tool: toolName, params: paramsToPass };
+
+               // SECURITY: Strip sensitive fields from display payload
+               const displayParams = { ...paramsToPass };
+               delete displayParams.accessToken;
+               delete displayParams.timezone;
+
+               // Build human-readable summary
+               let draftSummary = "";
+               if (toolName === "email") {
+                 draftSummary = `📧 **Email Draft**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
+               } else if (toolName.includes("calendar")) {
+                 draftSummary = `📅 **Calendar Event Draft**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}`;
+               } else {
+                 draftSummary = JSON.stringify(displayParams, null, 2);
+               }
+
                stepResults.push({
                  step: step.step,
                  tool: toolName,
@@ -85,7 +101,7 @@ FORMAT:
                  isDryRun: true,
                  toolResult: {
                     success: true,
-                    message: `I have drafted the ${toolName === 'email' ? 'email' : 'action'}. Here are the details:\n${JSON.stringify(paramsToPass, null, 2)}\n\nWould you like me to execute this, or do you want to edit anything?`
+                    message: `I have drafted the ${toolName === 'email' ? 'email' : 'calendar event'}. Here are the details:\n\n${draftSummary}\n\nShould I go ahead and ${toolName === 'email' ? 'send this' : 'add this to your calendar'}, or do you want to edit anything?`
                  }
                });
                toolCalled = toolName;

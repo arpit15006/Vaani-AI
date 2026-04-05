@@ -18,11 +18,36 @@ Respond with JSON:
   "intent": "plan_day" | "meeting_prep" | "implicit_weather" | "direct_command" | "confirmation" | "edit_draft" | "cancel_draft" | "casual_query"
 }`;
 
+// Hardcoded keyword safety net — LLM was misclassifying these as direct_command
+const CONFIRM_KEYWORDS = ["yes", "yeah", "yep", "yup", "sure", "ok", "okay", "do it", "send it", "go ahead", "confirm", "execute", "proceed", "looks good", "ship it", "fire", "haan", "kar do", "bhej do", "approved"];
+const CANCEL_KEYWORDS = ["no", "nah", "cancel", "discard", "nevermind", "never mind", "forget it", "nahi", "mat karo", "ruko", "stop"];
+
 async function classifyIntent(userMessage, pendingAction = null) {
   const startTime = Date.now();
   try {
+    // === FAST PATH: If there is a pending action, check keywords first before burning an LLM call ===
+    if (pendingAction) {
+      const lower = userMessage.toLowerCase().trim();
+      
+      if (CONFIRM_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw + " ") || lower.endsWith(" " + kw))) {
+        const durationMs = Date.now() - startTime;
+        return {
+          intent: "confirmation",
+          trace: { thinking: `Fast-path keyword match: "${lower}" detected as confirmation`, decision: "confirmation", durationMs }
+        };
+      }
+      
+      if (CANCEL_KEYWORDS.some(kw => lower === kw || lower.startsWith(kw + " ") || lower.endsWith(" " + kw))) {
+        const durationMs = Date.now() - startTime;
+        return {
+          intent: "cancel_draft",
+          trace: { thinking: `Fast-path keyword match: "${lower}" detected as cancel_draft`, decision: "cancel_draft", durationMs }
+        };
+      }
+    }
+
     const pendingContext = pendingAction 
-      ? `\n[SYSTEM WARNING: There is currently a PENDING ACTION waiting for confirmation. Action Type: ${pendingAction.tool}. Does the user's message confirm it, edit it, or cancel it?]\n`
+      ? `\n[SYSTEM CRITICAL: There is a PENDING ACTION of type "${pendingAction.tool}" waiting for the user's response. If the user says ANYTHING that means "yes", "go ahead", "send it", "execute", "confirm", "do it" — classify as "confirmation". If the user modifies details — classify as "edit_draft". If the user says "no" or "cancel" — classify as "cancel_draft". Do NOT classify confirmation words as "direct_command".]\n`
       : "";
       
     const prompt = `User's Output: "${userMessage}"${pendingContext}\n\nClassify the intent using the provided categories.`;
