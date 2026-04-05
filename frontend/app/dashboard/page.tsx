@@ -145,6 +145,21 @@ function DashboardContent() {
     else setStatus("idle")
   }, [stt.isListening, isLoading, tts.isSpeaking])
 
+  // Orchestrate STT lifecycle dynamically for Continuous Listening
+  useEffect(() => {
+    if (isLoading || tts.isSpeaking) {
+      if (stt.isListening) stt.stopListening()
+      return
+    }
+
+    if (!isLoading && !tts.isSpeaking && wakeWordEnabled && !stt.isListening && stt.isSupported) {
+      const startTimer = setTimeout(() => {
+         stt.startListening()
+      }, 500)
+      return () => clearTimeout(startTimer)
+    }
+  }, [isLoading, tts.isSpeaking, wakeWordEnabled, stt.isListening, stt.isSupported, stt.startListening, stt.stopListening])
+
   const loadConversation = async (id: string, title: string) => {
     if (!accessToken) return
     setIsLoading(true)

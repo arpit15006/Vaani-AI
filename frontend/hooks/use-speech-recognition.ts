@@ -26,6 +26,7 @@ export function useSpeechRecognition({
   const [isSupported, setIsSupported] = useState(false)
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const isContinuousRef = useRef(continuous)
+  const manualStopRef = useRef(false)
 
   useEffect(() => {
     isContinuousRef.current = continuous
@@ -61,8 +62,8 @@ export function useSpeechRecognition({
 
       recognition.onend = () => {
         setIsListening(false)
-        // Auto-restart if in continuous mode
-        if (isContinuousRef.current && recognitionRef.current) {
+        // Auto-restart if in continuous mode, UNLESS manually stopped
+        if (isContinuousRef.current && recognitionRef.current && !manualStopRef.current) {
           try {
              recognitionRef.current.start()
              setIsListening(true)
@@ -82,6 +83,7 @@ export function useSpeechRecognition({
   }, [])
 
   const startListening = useCallback(() => {
+    manualStopRef.current = false
     if (!recognitionRef.current) return
     setTranscript("")
     try {
@@ -93,6 +95,7 @@ export function useSpeechRecognition({
   }, [])
 
   const stopListening = useCallback(() => {
+    manualStopRef.current = true
     if (!recognitionRef.current) return
     try {
       recognitionRef.current.stop()
