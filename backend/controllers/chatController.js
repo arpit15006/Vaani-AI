@@ -93,6 +93,51 @@ async function handleChat(req, res) {
       return res.end();
     }
 
+    if (intent === "edit_draft" && pendingAction) {
+      // User wants to modify the pending draft (e.g. "change the time to 11:45 PM")
+      streamStatus("Updating your draft...");
+      
+      const { generateJSON } = require("../services/llmService");
+      const editPrompt = `You have a pending action draft with these parameters:
+${JSON.stringify(pendingAction.params, ["title", "summary", "date", "time", "startDateTime", "endDateTime", "to", "subject", "body", "newDate", "newTime", "newTitle", "eventId"], 2)}
+
+The user wants to edit it: "${message}"
+
+Return the UPDATED parameters as a JSON object. Only change the fields the user mentioned. Keep everything else the same.
+IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessToken or timezone.`;
+
+      try {
+        const edits = await generateJSON(editPrompt);
+        if (edits) {
+          // Merge edits into the existing pending action params
+          const updatedParams = { ...pendingAction.params, ...edits };
+          setPendingAction(userId, { tool: pendingAction.tool, params: updatedParams });
+          
+          // Build display summary (same logic as executor dry-run)
+          const displayParams = { ...updatedParams };
+          delete displayParams.accessToken;
+          delete displayParams.timezone;
+          
+          let draftSummary = "";
+          const toolName = pendingAction.tool;
+          if (toolName === "email") {
+            draftSummary = `📧 **Email Draft (Updated)**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
+          } else if (toolName.includes("calendar")) {
+            draftSummary = `📅 **Calendar Event Draft (Updated)**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}`;
+          } else {
+            draftSummary = JSON.stringify(displayParams, null, 2);
+          }
+
+          const reply = `I've updated the draft. Here are the new details:\n\n${draftSummary}\n\nShould I go ahead and ${toolName === 'email' ? 'send this' : 'add this to your calendar'}?`;
+          res.write(JSON.stringify({ type: "result", payload: { reply, agentTrace: { intentClassifier: intentRes.trace, editDraft: { thinking: "Merged user edits into pending action params", edits } } } }) + "\n");
+          return res.end();
+        }
+      } catch (err) {
+        console.error("[Chat] Edit draft failed:", err.message);
+      }
+      // If edit fails, fall through to normal pipeline
+    }
+
     // === FULL AGENT AUTO-LOOP PIPELINE ===
     const MAX_ITERATIONS = 3;
     let currentFeedbackMessage = message;
