@@ -3,6 +3,8 @@ const { routeTools } = require("../agents/toolRouter");
 const { execute } = require("../agents/executor");
 const { observe } = require("../agents/observer");
 const { critique } = require("../agents/critic");
+const { classifyIntent } = require("../agents/intentClassifier");
+const { checkPermission } = require("../agents/permissionLayer");
 const { runSystemTest } = require("../services/systemTest");
 const { getMemoryContext } = require("../services/memoryService");
 const { extractMemories } = require("../agents/memoryExtractor");
@@ -61,6 +63,10 @@ async function handleChat(req, res) {
       console.error("[Chat] User/Memory fetch failed:", err.message);
     }
 
+    // === 1. INTENT CLASSIFIER ===
+    const intentRes = await classifyIntent(message);
+    const intent = intentRes.intent;
+
     // === FULL AGENT AUTO-LOOP PIPELINE ===
     const MAX_ITERATIONS = 3;
     let currentFeedbackMessage = message;
@@ -68,19 +74,39 @@ async function handleChat(req, res) {
     let finalPlanResult = null;
     let finalRouteResult = null;
     let finalExecResult = null;
-    let finalTrace = {};
+    let finalTrace = { intent: intentRes.trace };
     const allActionsLog = [];
     const executedTools = new Set();
     const observerTraceLog = [];
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      // 1. Planner
-      const planResult = await plan(currentFeedbackMessage, history, memoryContext);
+      // 2. Planner (Decision Engine)
+      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent);
       if (i === 0) finalPlanResult = planResult; // Keep tracking the initial plan
 
       streamStatus(i > 0 ? `Thinking: Step ${i+1}...` : "Formulating execution plan...");
 
-      // 2. Tool Router
+      // 3. Permission Layer 🔐
+      // Only check permissions on the first generated plan
+      if (i === 0) {
+        const requestedInitialTools = planResult.steps.map(s => s.tool).filter(t => t && t !== "none");
+        const permRes = await checkPermission(requestedInitialTools, message, history);
+        
+        if (permRes.blocked) {
+          streamStatus("Waiting for user permission...");
+          // Skip the auto-loop, immediately pass to critic to ask for permission
+          finalExecResult = {
+            response: permRes.message,
+            action: "permission_requested",
+            actionsLog: [],
+            trace: { thinking: "Halted for safety permission", toolCalled: null, result: "Permission Blocked", durationMs: 0 }
+          };
+          finalTrace.permission = permRes.trace;
+          break; // Exit the loop entirely
+        }
+      }
+
+      // 4. Tool Router
       const routeResult = await routeTools(planResult.steps);
       if (i === 0) finalRouteResult = routeResult;
 
@@ -169,7 +195,9 @@ async function handleChat(req, res) {
       suggestions,
       conversationId,
       agentTrace: {
-        planner: finalPlanResult.trace,
+        intentClassifier: finalTrace.intent || null,
+        planner: finalPlanResult ? finalPlanResult.trace : null,
+        permissionLayer: finalTrace.permission || null,
         toolRouter: finalRouteResult ? finalRouteResult.trace : null,
         executor: { ...(finalExecResult ? finalExecResult.trace : {}), rawContext: finalExecResult ? finalExecResult.response : "" },
         observer: finalTrace.observer || null,

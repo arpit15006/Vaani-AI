@@ -12,9 +12,11 @@ Respond with JSON:
 
 RULES:
 - If the tool execution failed, taskCompleted is FALSE. Provide a logical fallback in nextStep.
-- If the tool execution succeeded, check if the data retrieved fullfills the WHOLE user request.
-- Example 1: User asked: "Do I have meetings tomorrow and at what time?". Tool 'calendar_list' returned 2 meetings. -> taskCompleted: TRUE.
-- Example 2: User asked: "Check my schedule and email Zorvyn if I have free time". Tool 'calendar_list' returned no meetings. The email hasn't been sent yet! -> taskCompleted: FALSE. nextStep: "Send email to Zorvyn saying I am free".
+- If the execution just retrieved data (e.g., weather or calendar data), taskCompleted is FALSE because you must summarize it for the user! 
+  - nextStep: "Summarize the gathered data and respond to the user's original request cohesively."
+- If the final execution output is already a natural language summarization/response to the user, taskCompleted is TRUE.
+- Example 1: User asked: "Plan my day". Current Output has raw JSON calendar events. -> taskCompleted: FALSE. nextStep: "Summarize the events to plan the user's day."
+- Example 2: User asked: "Plan my day". Current Output says "Here is your plan for the day..." -> taskCompleted: TRUE.
 - If you are unsure, set taskCompleted to FALSE and suggest a next step.`;
 
 async function observe(userRequest, executionOutput) {

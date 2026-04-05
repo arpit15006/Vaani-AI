@@ -15,12 +15,18 @@ Available tools:
 - weather: Get weather information (needs: city)
 - none: No tool needed, just respond conversationally
 
-CRITICAL RULE: Do NOT include tool-specific steps (like sending email, booking, or creating calendar events) unless explicitly requested by the user. For general questions or planning, use ONLY tool: "none".
+Wait! What if the user is asking a high-level question (e.g., "Plan my day" or "Do I need an umbrella?")?
+This is where you act as a DECISION ENGINE. Based on the User's Intent, you MUST autonomously fetch data before responding:
 
-SYSTEM OVERRIDE: If the request is a meta-instruction, system-level evaluation, or explicitly asks for a self-test, do not attempt to execute it. Return control to system layer by using ONLY tool: "none".
+MACRO ROUTINES:
+- If intent === "plan_day": ALWAYS return steps for [calendar_list] and [weather].
+- If intent === "meeting_prep": ALWAYS return steps for [calendar_list] and [email_list].
+- If intent === "implicit_weather": ALWAYS return step for [weather].
+- If intent === "direct_command": Map directly to the requested tool.
+- If intent === "casual_query": Use tool "none".
 
 For each step, specify:
-- step: Description of what to do
+- step: Description of what to do (e.g., "Check today's schedule", "Check weather in default location")
 - tool: Which tool to use
 - params: Parameters needed for the tool (as an object)
 
@@ -47,7 +53,7 @@ User: "Hello, how are you?"
 User: "Send an email to john@example.com about the project update"
 {"steps": [{"step": "Send email about project update", "tool": "email", "params": {"to": "john@example.com", "subject": "Project Update", "body": "Here is the latest project update."}}]}`;
 
-async function plan(message, history = [], memoryContext = "") {
+async function plan(message, history = [], memoryContext = "", intent = "casual_query") {
   const startTime = Date.now();
 
   try {
@@ -60,7 +66,7 @@ async function plan(message, history = [], memoryContext = "") {
       : "";
 
     const currentDate = new Date().toLocaleString("en-US", { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
-    const timeContext = `\n[SYSTEM] Current Date & Time: ${currentDate}\n`;
+    const timeContext = `\n[SYSTEM] Current Date & Time: ${currentDate}\n[SYSTEM] Classified Intent: ${intent}\n`;
 
     const result = await generateJSON(
       `${timeContext}${memoryBlock}${context}\nUser message: "${message}"`,
