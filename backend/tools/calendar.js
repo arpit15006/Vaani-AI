@@ -87,23 +87,29 @@ async function listCalendarEvents({ date, query, maxResults = 10, accessToken, t
     const calendar = getCalendarClient(accessToken);
     const now = getNowInTimezone(userTimezone);
 
-    // Build time range
+    // Build time range using the USER'S timezone, NOT the server's UTC
     let timeMin, timeMax;
     if (date) {
       const parsed = parseDateOnly(date, now).date;
-      timeMin = new Date(parsed);
-      timeMin.setHours(0, 0, 0, 0);
-      timeMax = new Date(parsed);
-      timeMax.setHours(23, 59, 59, 999);
+      // Construct ISO strings representing start/end of day in user's timezone
+      const pad = (n) => n.toString().padStart(2, '0');
+      const y = parsed.getFullYear();
+      const m = pad(parsed.getMonth() + 1);
+      const d = pad(parsed.getDate());
+      // Use the Google Calendar API's timeZone param to interpret these correctly
+      timeMin = `${y}-${m}-${d}T00:00:00`;
+      timeMax = `${y}-${m}-${d}T23:59:59`;
     } else {
-      timeMin = now;
-      timeMax = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Next 7 days
+      timeMin = toLocalISO(now);
+      const futureDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      timeMax = toLocalISO(futureDate);
     }
 
     const params = {
       calendarId: "primary",
-      timeMin: timeMin.toISOString(),
-      timeMax: timeMax.toISOString(),
+      timeMin: timeMin,
+      timeMax: timeMax,
+      timeZone: userTimezone, // Let Google handle timezone conversion!
       maxResults,
       singleEvents: true,
       orderBy: "startTime",
