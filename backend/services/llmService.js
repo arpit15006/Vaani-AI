@@ -60,7 +60,28 @@ async function generateJSON(prompt, systemPrompt = "", model = MODEL_POWER) {
     });
 
     const text = completion.choices[0]?.message?.content || "{}";
-    return JSON.parse(text);
+    
+    // Robustly parse JSON with trailing comma correction
+    function robustJSONParse(str) {
+      try {
+        return JSON.parse(str);
+      } catch (err) {
+        try {
+          const fixed = str.replace(/,\s*([}\]])/g, '$1');
+          return JSON.parse(fixed);
+        } catch (err2) {
+          const match = str.match(/\{[\s\S]*\}/);
+          if (match) {
+            try {
+               return JSON.parse(match[0].replace(/,\s*([}\]])/g, '$1'));
+            } catch(e) { throw err; }
+          }
+          throw err;
+        }
+      }
+    }
+
+    return robustJSONParse(text);
   } catch (error) {
     // AUTO-FALLBACK: Improved check for 429 Rate Limit (various SDK formats)
     const isRateLimit = error.status === 429 || 

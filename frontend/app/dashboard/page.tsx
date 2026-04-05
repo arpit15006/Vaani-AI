@@ -38,6 +38,7 @@ import {
   Settings,
   Shield,
   MessageSquarePlus,
+  Radio
 } from "lucide-react"
 
 function DashboardContent() {
@@ -50,6 +51,7 @@ function DashboardContent() {
   const [wakeWordEnabled, setWakeWordEnabled] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(true)
   const [proactiveEnabled, setProactiveEnabled] = useState(true)
+  const [sseConnected, setSseConnected] = useState(false)
   
   // Dashboard UI State
   const [activeTab, setActiveTab] = useState("chat")
@@ -154,7 +156,10 @@ function DashboardContent() {
       
       eventSource = new EventSource(`${apiUrl}/api/notifications/stream?token=${accessToken}&tz=${tz}`);
 
-      eventSource.onopen = () => console.log("🤖 [Proactive AI] Connected to Jarvis engine");
+      eventSource.onopen = () => {
+        console.log("🤖 [Proactive AI] Connected to Jarvis engine");
+        setSseConnected(true);
+      };
 
       eventSource.onmessage = (event) => {
         try {
@@ -166,9 +171,9 @@ function DashboardContent() {
           if (data.type === "proactive_alert") {
              // 1. Non-voice visual fallback (always show)
              addToast({ 
-               title: "Proactive Alert", 
+               title: "✦ Jarvis Alert", 
                description: data.message, 
-               variant: "default" 
+               variant: "default"
              });
              
              // 2. Interrupt Control & Voice (Respect user settings)
@@ -183,6 +188,7 @@ function DashboardContent() {
 
       eventSource.onerror = () => {
         console.warn("🤖 [Proactive AI] Connection lost. Reconnecting in 10s...");
+        setSseConnected(false);
         if (eventSource) eventSource.close();
         reconnectTimer = setTimeout(connectSSE, 10000);
       };
@@ -373,6 +379,14 @@ function DashboardContent() {
           </div>
 
           <div className="flex items-center gap-2">
+            {isAuthenticated && proactiveEnabled && (
+               <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded-full border border-border/50">
+                 <Radio className={`size-3 ${sseConnected ? "text-blue-400 animate-pulse" : "text-muted-foreground"}`} />
+                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">
+                   {sseConnected ? "Active" : "Connecting"}
+                 </span>
+               </div>
+            )}
             <StatusIndicator status={status} />
             <ThemeToggle />
 
