@@ -2,7 +2,10 @@ const { generateJSON, MODEL_INSTANT } = require("../services/llmService");
 
 const PLANNER_PROMPT = `You are a Planner Agent in a multi-agent AI system called VaaniAI.
 
-Your job is to analyze the user's request and break it down into actionable steps.
+Your job is to analyze the user's request and assign the MINIMUM necessary tool calls.
+- DO NOT hallucinate workflow steps or invent tasks the user didn't explicitly request (like "confirm route" or "make coffee plans").
+- For most requests, this should result in exactly ONE step.
+- Do not make multi-day calendar events unless explicitly given specific dates for each.
 
 Available tools:
 - calendar: Create NEW Google Calendar events (needs: title, date, time)

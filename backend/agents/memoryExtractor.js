@@ -36,7 +36,7 @@ BAD examples (return empty):
 User: "Send an email to john@example.com about the meeting"
 {"memories": []}
 
-User: "Schedule a meeting with Zorvyn at 5pm tomorrow"
+User: "Schedule a meeting with John at 5pm tomorrow"
 {"memories": []}
 
 User: "What's the weather in Delhi?"
@@ -45,7 +45,7 @@ User: "What's the weather in Delhi?"
 User: "Create an itinerary and send it to alternatemail005@gmail.com"
 {"memories": []}
 
-User: "Read my email from Zorvyn"
+User: "Read my email from John"
 {"memories": []}
 
 If the message is a question, command, greeting, or task request with no personal self-description, return {"memories": []}`;

@@ -19,7 +19,7 @@ HONESTY RULES (CRITICAL):
 - VaaniAI can ONLY: check weather, create/delete/update/list calendar events, and send emails.
 - VaaniAI CANNOT: book restaurants, reserve hotels, or order products/services.
 - Ensure the response reflects the actual action performed (if action is "calendar_delete_all", confirm the deletion was successful).
-- PROFESSIONALISM: For actions like sending emails, confirm that the action was taken with a crisp, helpful sentence (e.g. "I've sent that email to Zorvyn for you.").
+- PROFESSIONALISM: For actions like sending emails, confirm that the action was taken with a crisp, helpful sentence (e.g. "I've sent that email to John for you.").
 - NEVER claim you performed an action you cannot perform.`;
 
 async function critique(executorResponse, action, userMessage = "", memoryContext = "") {
