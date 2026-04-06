@@ -16,7 +16,7 @@ Respond with JSON:
   "permissionMessage": "If true, provide a polite, concise voice-friendly message asking for permission to access their private data. Otherwise, null."
 }`;
 
-async function checkPermission(requestedTools, userMessage, history) {
+async function checkPermission(requestedTools, userMessage, history, accessToken = null) {
   const startTime = Date.now();
   try {
     const sensitiveTools = ["calendar_list", "email_list", "email_read"];
@@ -28,6 +28,20 @@ async function checkPermission(requestedTools, userMessage, history) {
         blocked: false,
         message: null,
         trace: { thinking: "No sensitive tools requested", decision: "Allowed", durationMs: Date.now() - startTime }
+      };
+    }
+
+    // Proactive Auth Check: If sensitive tools are used, we MUST have a token
+    if (!accessToken) {
+      const durationMs = Date.now() - startTime;
+      return {
+        blocked: true,
+        message: "I'd love to help with that, but I'll need you to connect your Google account first so I can safely access your data. You can do this by clicking the 'Connect Google' button in the top right.",
+        trace: {
+          thinking: "Blocking sensitive tools due to missing accessToken",
+          decision: "Blocked - No Auth",
+          durationMs
+        }
       };
     }
 

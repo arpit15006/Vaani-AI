@@ -54,7 +54,7 @@ User: "What meetings do I have tomorrow?"
 User: "Hello, how are you?"
 {"steps": [{"step": "Respond with a greeting", "tool": "none", "params": {}}]}`;
 
-async function plan(message, history = [], memoryContext = "", intent = "casual_query", pendingAction = null, userTimezone = "UTC") {
+async function plan(message, history = [], memoryContext = "", intent = "casual_query", pendingAction = null, userTimezone = "UTC", userEmail = null) {
   const startTime = Date.now();
 
   try {
@@ -65,6 +65,8 @@ async function plan(message, history = [], memoryContext = "", intent = "casual_
     const memoryBlock = memoryContext
       ? `\n${memoryContext}\n`
       : "";
+
+    const identityContext = userEmail ? `\n[SYSTEM] User Identity: The authenticated user's email is "${userEmail}". Use "me" as the recipient if they ask to email themselves.\n` : "";
 
     // Compute current date/time in the USER'S timezone, not the server's
     const nowInUserTz = new Date().toLocaleString("en-US", { 
@@ -85,7 +87,7 @@ async function plan(message, history = [], memoryContext = "", intent = "casual_
        pendingContext = `\n[SYSTEM PENDING DRAFT]: {\"tool\": \"${pendingAction.tool}\", \"params\": ${JSON.stringify(pendingAction.params)}}\n`;
     }
 
-    const timeContext = `\n[SYSTEM] Current Date & Time (user's local): ${nowInUserTz}\n[SYSTEM] Today's date: ${todayStr}\n[SYSTEM] Tomorrow's date: ${tomorrowStr}\n[SYSTEM] User Timezone: ${userTimezone}\n[SYSTEM] Classified Intent: ${intent}\n${pendingContext}`;
+    const timeContext = `\n[SYSTEM] Current Date & Time (user's local): ${nowInUserTz}\n[SYSTEM] Today's date: ${todayStr}\n[SYSTEM] Tomorrow's date: ${tomorrowStr}\n[SYSTEM] User Timezone: ${userTimezone}\n[SYSTEM] Classified Intent: ${intent}\n${identityContext}${pendingContext}`;
 
     const result = await generateJSON(
       `${timeContext}${memoryBlock}${context}\nUser message: "${message}"`,

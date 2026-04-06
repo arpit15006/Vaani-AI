@@ -1,6 +1,6 @@
 const { google } = require("googleapis");
 
-async function sendEmail({ to, subject, body, accessToken }) {
+async function sendEmail({ to, subject, body, accessToken, userEmail }) {
   try {
     if (!accessToken) {
       return {
@@ -16,8 +16,9 @@ async function sendEmail({ to, subject, body, accessToken }) {
     let recipient = to;
     
     // Support "send me an email"
-    if (recipient && recipient.toLowerCase().trim() === "me") {
-      recipient = null;
+    const lowerTo = (recipient || "").toLowerCase().trim();
+    if (lowerTo === "me" || lowerTo === "myself" || !recipient) {
+      recipient = userEmail || null;
     } else if (recipient && !recipient.includes("@")) {
       return {
         success: false,
@@ -26,6 +27,7 @@ async function sendEmail({ to, subject, body, accessToken }) {
       };
     }
     
+    // Final fallback: If still no recipient, fetch from Google profile
     if (!recipient) {
       try {
         const oauth2 = google.oauth2({ auth: oauth2Client, version: "v2" });

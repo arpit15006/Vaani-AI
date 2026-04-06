@@ -15,7 +15,7 @@ const toolFunctions = {
   weather: getWeather,
 };
 
-async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "", timezone = "UTC", previousContext = "", isConfirmed = false) {
+async function execute(routeResult, message, history = [], accessToken = null, memoryContext = "", userName = "", timezone = "UTC", previousContext = "", isConfirmed = false, userEmail = null) {
   const startTime = Date.now();
   const routedSteps = routeResult.steps;
   const routerDecision = routeResult.trace.decision;
@@ -40,7 +40,16 @@ async function execute(routeResult, message, history = [], accessToken = null, m
 
         if (toolFn) {
           try {
-            let paramsToPass = { ...step.params, accessToken, timezone };
+            let paramsToPass = { ...step.params, accessToken, timezone, userEmail };
+
+            // === IDENTITY RESOLUTION (PHASE 5) ===
+            // Automatically resolve "me" placeholders before drafting/executing
+            if (step.routing.toolName === "email" && userEmail) {
+              const to = (paramsToPass.to || "").toLowerCase().trim();
+              if (to === "me" || to === "myself" || to === "self") {
+                paramsToPass.to = userEmail;
+              }
+            }
 
             // Auto-draft email bodies with full context injection
             if (step.routing.toolName === "email") {
@@ -150,15 +159,19 @@ FORMAT:
 
           } catch (error) {
             console.error(`[Executor] Tool ${step.routing.toolName} failed:`, error.message);
+            const isAuthError = error.message.toLowerCase().includes("auth") || error.message.toLowerCase().includes("permission");
+            
             stepResults.push({
               step: step.step,
               tool: step.routing.toolName,
-              summary: `Error: ${error.message}`,
+              summary: isAuthError ? "Not authenticated" : `Error: ${error.message}`,
               success: false,
               toolResult: {
                 success: false,
                 error: error.message,
-                fallback: `I couldn't complete that action right now. ${error.message}`,
+                fallback: isAuthError 
+                  ? "I need you to connect your Google account to perform this action." 
+                  : `I couldn't complete that action right now. ${error.message}`,
               },
             });
           }

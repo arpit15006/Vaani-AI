@@ -19,6 +19,7 @@ async function handleChat(req, res) {
   try {
     let { message, history = [], timezone } = req.body;
     const accessToken = req.accessToken;
+    const userEmail = req.userEmail || null;
     const userId = req.userId || "local";
 
     if (!message || typeof message !== "string") {
@@ -91,7 +92,7 @@ async function handleChat(req, res) {
           trace: { decision: "Tool required", reasoning: "User confirmed draft" }
         };
 
-        const execResult = await execute(mockRouteResult, message, history, accessToken, memoryContext, userName, timezone, "", true);
+        const execResult = await execute(mockRouteResult, message, history, accessToken, memoryContext, userName, timezone, "", true, userEmail);
         clearPendingAction(userId);
         
         const criticResult = await critique(execResult.response, execResult.action, message, memoryContext);
@@ -166,7 +167,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       // 2. Planner (Decision Engine)
-      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent, pendingAction, timezone);
+      const planResult = await plan(currentFeedbackMessage, history, memoryContext, intent, pendingAction, timezone, userEmail);
       if (i === 0) finalPlanResult = planResult; // Keep tracking the initial plan
 
       streamStatus(i > 0 ? `Thinking: Step ${i+1}...` : "Formulating execution plan...");
@@ -175,7 +176,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
       // Only check permissions on the first generated plan
       if (i === 0) {
         const requestedInitialTools = planResult.steps.map(s => s.tool).filter(t => t && t !== "none");
-        const permRes = await checkPermission(requestedInitialTools, message, history);
+        const permRes = await checkPermission(requestedInitialTools, message, history, accessToken);
         
         if (permRes.blocked) {
           streamStatus("Waiting for user permission...");
@@ -212,7 +213,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
           break;
         }
         if (i === 0) streamStatus("Generating conversational response...");
-        const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName, timezone);
+        const execResult = await execute(routeResult, message, history, accessToken, memoryContext, userName, timezone, "", false, userEmail);
         finalExecResult = execResult;
         if (execResult.actionsLog) allActionsLog.push(...execResult.actionsLog);
         break; // No further tools requested. End immediately.
@@ -230,13 +231,15 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
       // 3. Executor
       const execResult = await execute(
         routeResult,
-        message, // Pass original message + current context if needed
+        message, 
         history,
         accessToken,
         memoryContext,
         userName,
         timezone,
-        currentFeedbackMessage // Pass accumulated context so executor uses it
+        currentFeedbackMessage,
+        false, // isConfirmed
+        userEmail
       );
       finalExecResult = execResult;
 
