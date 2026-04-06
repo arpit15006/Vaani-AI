@@ -49,7 +49,7 @@ async function execute(routeResult, message, history = [], accessToken = null, m
                 : "";
 
               const draftedBody = await generateContent(
-                `${memoryContext ? `\nUser memory:\n${memoryContext}\n` : ""}${historyContext}${previousStepContext}\nThe user requested to send an email: "${message}".
+                `${memoryContext ? `\nUser memory:\n${memoryContext}\n` : ""}${historyContext}${previousContext ? `\nSystem context from previous actions:\n${previousContext}\n` : ""}${previousStepContext}\nThe user requested to send an email: "${message}".
 
 CRITICAL INSTRUCTIONS:
 - You are drafting the ACTUAL body of the email.
@@ -171,7 +171,7 @@ FORMAT:
           : "";
 
         const response = await generateContent(
-          `${memoryContext ? `\nUser memory:\n${memoryContext}\n` : ""}${context}${previousStepContext}\nUser: ${message}\n\nRespond helpfully, naturally, and concisely. You are VaaniAI, a voice AI assistant.`
+          `${memoryContext ? `\nUser memory:\n${memoryContext}\n` : ""}${context}${previousContext ? `\nSystem context from previous actions:\n${previousContext}\n` : ""}${previousStepContext}\nUser: ${message}\n\nRespond helpfully, naturally, and concisely. You are VaaniAI, a voice AI assistant.`
         );
         stepResults.push({ step: step.step, summary: response, response });
       }

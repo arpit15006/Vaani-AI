@@ -17,7 +17,7 @@ async function handleChat(req, res) {
   const pipelineStart = Date.now();
 
   try {
-    const { message, history = [], timezone } = req.body;
+    let { message, history = [], timezone } = req.body;
     const accessToken = req.accessToken;
     const userId = req.userId || "local";
 
@@ -72,33 +72,44 @@ async function handleChat(req, res) {
     // === ROUTE PRE-CHECKS ===
     if (intent === "cancel_draft") {
       clearPendingAction(userId);
-      res.write(JSON.stringify({ type: "result", payload: { reply: "Alright, I've discarded the draft. What's next?", agentTrace: { intentClassifier: intentRes.trace } } }) + "\n");
+      res.write(JSON.stringify({ type: "result", payload: { reply: "Alright, I've cancelled that. What's next?", agentTrace: { intentClassifier: intentRes.trace } } }) + "\n");
       return res.end();
     }
 
     if (intent === "confirmation" && pendingAction) {
-      // Execute the pending action immediately bypassing Planner Router
-      streamStatus("Executing confirmed action...");
-      
-      const mockRouteResult = {
-        steps: [{ step: "Execute confirmed template", routing: { requiresTool: true, toolName: pendingAction.tool }, params: pendingAction.params }],
-        trace: { decision: "Tool required", reasoning: "User confirmed draft" }
-      };
+      if (pendingAction.tool === "permission_requested") {
+        streamStatus("Permission granted. Proceeding...");
+        message = pendingAction.originalMessage + " (Permission granted)";
+        clearPendingAction(userId);
+        // Do not return, let it fall through to pipeline to execute original command
+      } else {
+        // Execute the pending action immediately bypassing Planner Router
+        streamStatus("Executing confirmed action...");
+        
+        const mockRouteResult = {
+          steps: [{ step: "Execute confirmed template", routing: { requiresTool: true, toolName: pendingAction.tool }, params: pendingAction.params }],
+          trace: { decision: "Tool required", reasoning: "User confirmed draft" }
+        };
 
-      const execResult = await execute(mockRouteResult, message, history, accessToken, memoryContext, userName, timezone, "", true);
-      clearPendingAction(userId);
-      
-      const criticResult = await critique(execResult.response, execResult.action, message, memoryContext);
-      res.write(JSON.stringify({ type: "result", payload: { reply: criticResult.response, action: execResult.action, agentTrace: { intentClassifier: intentRes.trace, executor: execResult.trace, critic: criticResult.trace } } }) + "\n");
-      return res.end();
+        const execResult = await execute(mockRouteResult, message, history, accessToken, memoryContext, userName, timezone, "", true);
+        clearPendingAction(userId);
+        
+        const criticResult = await critique(execResult.response, execResult.action, message, memoryContext);
+        res.write(JSON.stringify({ type: "result", payload: { reply: criticResult.response, action: execResult.action, agentTrace: { intentClassifier: intentRes.trace, executor: execResult.trace, critic: criticResult.trace } } }) + "\n");
+        return res.end();
+      }
     }
 
     if (intent === "edit_draft" && pendingAction) {
-      // User wants to modify the pending draft (e.g. "change the time to 11:45 PM")
-      streamStatus("Updating your draft...");
-      
-      const { generateJSON } = require("../services/llmService");
-      const editPrompt = `You have a pending action draft with these parameters:
+      if (pendingAction.tool === "permission_requested") {
+        clearPendingAction(userId);
+        // Fall through
+      } else {
+        // User wants to modify the pending draft (e.g. "change the time to 11:45 PM")
+        streamStatus("Updating your draft...");
+        
+        const { generateJSON } = require("../services/llmService");
+        const editPrompt = `You have a pending action draft with these parameters:
 ${JSON.stringify(pendingAction.params, ["title", "summary", "date", "time", "startDateTime", "endDateTime", "to", "subject", "body", "newDate", "newTime", "newTitle", "eventId"], 2)}
 
 The user wants to edit it: "${message}"
@@ -106,41 +117,44 @@ The user wants to edit it: "${message}"
 Return the UPDATED parameters as a JSON object. Only change the fields the user mentioned. Keep everything else the same.
 IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessToken or timezone.`;
 
-      try {
-        const edits = await generateJSON(editPrompt);
-        if (edits) {
-          // Merge edits into the existing pending action params
-          const updatedParams = { ...pendingAction.params, ...edits };
-          setPendingAction(userId, { tool: pendingAction.tool, params: updatedParams });
-          
-          // Build display summary (same logic as executor dry-run)
-          const displayParams = { ...updatedParams };
-          delete displayParams.accessToken;
-          delete displayParams.timezone;
-          
-          let draftSummary = "";
-          const toolName = pendingAction.tool;
-          if (toolName === "email") {
-            draftSummary = `📧 **Email Draft (Updated)**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
-          } else if (toolName.includes("calendar")) {
-            draftSummary = `📅 **Calendar Event Draft (Updated)**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}${displayParams.duration ? `\n• Duration: ${displayParams.duration} minutes` : ""}`;
-          } else {
-            draftSummary = JSON.stringify(displayParams, null, 2);
-          }
+        try {
+          const edits = await generateJSON(editPrompt);
+          if (edits) {
+            // Merge edits into the existing pending action params
+            const updatedParams = { ...pendingAction.params, ...edits };
+            setPendingAction(userId, { tool: pendingAction.tool, params: updatedParams });
+            
+            // Build display summary (same logic as executor dry-run)
+            const displayParams = { ...updatedParams };
+            delete displayParams.accessToken;
+            delete displayParams.timezone;
+            
+            let draftSummary = "";
+            const toolName = pendingAction.tool;
+            if (toolName === "email") {
+              draftSummary = `📧 **Email Draft (Updated)**\n• To: ${displayParams.to || "N/A"}\n• Subject: ${displayParams.subject || "N/A"}\n• Body: ${(displayParams.body || "").substring(0, 200)}${(displayParams.body || "").length > 200 ? "..." : ""}`;
+            } else if (toolName.includes("calendar")) {
+              draftSummary = `📅 **Calendar Event Draft (Updated)**\n• Title: ${displayParams.title || displayParams.summary || "N/A"}\n• Date: ${displayParams.date || displayParams.startDateTime || "N/A"}\n• Time: ${displayParams.time || "N/A"}${displayParams.duration ? `\n• Duration: ${displayParams.duration} minutes` : ""}`;
+            } else {
+              draftSummary = JSON.stringify(displayParams, null, 2);
+            }
 
-          const reply = `I've updated the draft. Here are the new details:\n\n${draftSummary}\n\nShould I go ahead and ${toolName === 'email' ? 'send this' : 'add this to your calendar'}?`;
-          res.write(JSON.stringify({ type: "result", payload: { reply, agentTrace: { intentClassifier: intentRes.trace, editDraft: { thinking: "Merged user edits into pending action params", edits } } } }) + "\n");
-          return res.end();
+            const reply = `I've updated the draft. Here are the new details:\n\n${draftSummary}\n\nShould I go ahead and ${toolName === 'email' ? 'send this' : 'add this to your calendar'}?`;
+            res.write(JSON.stringify({ type: "result", payload: { reply, agentTrace: { intentClassifier: intentRes.trace, editDraft: { thinking: "Merged user edits into pending action params", edits } } } }) + "\n");
+            return res.end();
+          }
+        } catch (err) {
+          console.error("[Chat] Edit draft failed:", err.message);
         }
-      } catch (err) {
-        console.error("[Chat] Edit draft failed:", err.message);
+        // If edit fails, fall through to normal pipeline
       }
-      // If edit fails, fall through to normal pipeline
     }
+
+    // Capture the current iteration message
+    let currentFeedbackMessage = message; 
 
     // === FULL AGENT AUTO-LOOP PIPELINE ===
     const MAX_ITERATIONS = 3;
-    let currentFeedbackMessage = message;
     
     let finalPlanResult = null;
     let finalRouteResult = null;
@@ -173,6 +187,7 @@ IMPORTANT: Return ONLY the changed/new key-value pairs. Do NOT include accessTok
             trace: { thinking: "Halted for safety permission", toolCalled: null, result: "Permission Blocked", durationMs: 0 }
           };
           finalTrace.permission = permRes.trace;
+          setPendingAction(userId, { tool: "permission_requested", originalMessage: message });
           break; // Exit the loop entirely
         }
       }
